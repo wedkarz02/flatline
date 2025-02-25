@@ -10,7 +10,7 @@ pub trait UserRepository {
     async fn create(&self, username: &str, password: &str) -> anyhow::Result<User>;
     async fn find_all(&self) -> anyhow::Result<Vec<User>>;
     async fn find_by_id(&self, id: Uuid) -> anyhow::Result<Option<User>>;
-    async fn delete_all(&self) -> anyhow::Result<()>;
+    async fn delete_all(&self) -> anyhow::Result<u64>;
 }
 
 #[async_trait]
@@ -50,19 +50,20 @@ impl UserRepository for Database {
         Ok(Some(user))
     }
 
-    async fn delete_all(&self) -> anyhow::Result<()> {
+    async fn delete_all(&self) -> anyhow::Result<u64> {
         let mut tx = self
             .pool
             .begin()
             .await?;
 
-        sqlx::query("TRUNCATE users")
-            .fetch_all(&mut *tx)
-            .await?;
+        let deleted_count = sqlx::query("DELETE FROM users")
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
 
         tx.commit()
             .await?;
 
-        Ok(())
+        Ok(deleted_count)
     }
 }

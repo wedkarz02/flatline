@@ -57,12 +57,14 @@ async fn get_user_by_id(
 }
 
 async fn delete_all_users(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    state
+    let deleted_count = state
         .db
         .users()
         .delete_all()
         .await
         .unwrap();
+
+    Json(deleted_count)
 }
 
 pub fn create_routes(state: Arc<AppState>) -> Router {
