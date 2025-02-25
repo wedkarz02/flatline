@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use serde::Deserialize;
@@ -24,7 +24,7 @@ async fn create_user(
     let created_user = state
         .db
         .users()
-        .create_user(&payload.username, &payload.password)
+        .create(&payload.username, &payload.password)
         .await
         .unwrap();
 
@@ -32,19 +32,10 @@ async fn create_user(
 }
 
 async fn get_all_users(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    // let users = sqlx::query_as::<_, User>("SELECT * FROM users")
-    //     .fetch_all(
-    //         &state
-    //             .db
-    //             .pool,
-    //     )
-    //     .await
-    //     .unwrap();
-
     let users = state
         .db
         .users()
-        .get_all_users()
+        .find_all()
         .await
         .unwrap();
 
@@ -55,24 +46,23 @@ async fn get_user_by_id(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    // let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
-    //     .bind(id)
-    //     .fetch_one(
-    //         &state
-    //             .db
-    //             .pool,
-    //     )
-    //     .await
-    //     .unwrap();
-
     let user = state
         .db
         .users()
-        .get_user_by_id(id)
+        .find_by_id(id)
         .await
         .unwrap();
 
     Json(user)
+}
+
+async fn delete_all_users(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    state
+        .db
+        .users()
+        .delete_all()
+        .await
+        .unwrap();
 }
 
 pub fn create_routes(state: Arc<AppState>) -> Router {
@@ -80,5 +70,6 @@ pub fn create_routes(state: Arc<AppState>) -> Router {
         .route("/", get(get_all_users))
         .route("/", post(create_user))
         .route("/{id}", get(get_user_by_id))
+        .route("/", delete(delete_all_users))
         .with_state(state)
 }

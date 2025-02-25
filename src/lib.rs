@@ -10,7 +10,6 @@ pub mod routes;
 
 #[derive(Clone)]
 pub struct AppState {
-    // db: Database,
     db: Arc<dyn Repository + Send + Sync>,
     config: Config,
 }

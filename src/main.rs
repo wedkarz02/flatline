@@ -8,12 +8,7 @@ async fn main() {
                 format!("{}=debug,tower_http=debug", env!("CARGO_PKG_NAME")).into()
             }),
         )
-        .with(
-            tracing_subscriber::fmt::layer()
-                .with_target(true)
-                .with_file(true)
-                .with_line_number(true),
-        )
+        .with(tracing_subscriber::fmt::layer())
         .init();
 
     tracing::info!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
