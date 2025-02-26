@@ -9,7 +9,7 @@ use axum::{
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::AppState;
+use crate::{error::AppError, AppState};
 
 #[derive(Deserialize)]
 struct CreateUserReq {
@@ -20,51 +20,49 @@ struct CreateUserReq {
 async fn create_user(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<CreateUserReq>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     let created_user = state
         .db
         .users()
         .create(&payload.username, &payload.password)
-        .await
-        .unwrap();
+        .await?;
 
-    Json(created_user)
+    Ok(Json(created_user))
 }
 
-async fn get_all_users(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+async fn get_all_users(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, AppError> {
     let users = state
         .db
         .users()
         .find_all()
-        .await
-        .unwrap();
+        .await?;
 
-    Json(users)
+    Ok(Json(users))
 }
 
 async fn get_user_by_id(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     let user = state
         .db
         .users()
         .find_by_id(id)
-        .await
-        .unwrap();
+        .await?;
 
-    Json(user)
+    Ok(Json(user))
 }
 
-async fn delete_all_users(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+async fn delete_all_users(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, AppError> {
     let deleted_count = state
         .db
         .users()
         .delete_all()
-        .await
-        .unwrap();
+        .await?;
 
-    Json(deleted_count)
+    Ok(Json(deleted_count))
 }
 
 pub fn create_routes(state: Arc<AppState>) -> Router {
