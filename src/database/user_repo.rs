@@ -7,15 +7,15 @@ use super::Database;
 
 #[async_trait]
 pub trait UserRepository {
-    async fn create(&self, username: &str, password: &str) -> anyhow::Result<User>;
-    async fn find_all(&self) -> anyhow::Result<Vec<User>>;
-    async fn find_by_id(&self, id: Uuid) -> anyhow::Result<Option<User>>;
-    async fn delete_all(&self) -> anyhow::Result<u64>;
+    async fn create(&self, username: &str, password: &str) -> Result<User, sqlx::Error>;
+    async fn find_all(&self) -> Result<Vec<User>, sqlx::Error>;
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error>;
+    async fn delete_all(&self) -> Result<u64, sqlx::Error>;
 }
 
 #[async_trait]
 impl UserRepository for Database {
-    async fn create(&self, username: &str, password: &str) -> anyhow::Result<User> {
+    async fn create(&self, username: &str, password: &str) -> Result<User, sqlx::Error> {
         let mut tx = self
             .pool
             .begin()
@@ -33,7 +33,7 @@ impl UserRepository for Database {
         Ok(created_user)
     }
 
-    async fn find_all(&self) -> anyhow::Result<Vec<User>> {
+    async fn find_all(&self) -> Result<Vec<User>, sqlx::Error> {
         let users = sqlx::query_as::<_, User>("SELECT * FROM users")
             .fetch_all(&self.pool)
             .await?;
@@ -41,7 +41,7 @@ impl UserRepository for Database {
         Ok(users)
     }
 
-    async fn find_by_id(&self, id: Uuid) -> anyhow::Result<Option<User>> {
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error> {
         let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(id)
             .fetch_one(&self.pool)
@@ -50,7 +50,7 @@ impl UserRepository for Database {
         Ok(Some(user))
     }
 
-    async fn delete_all(&self) -> anyhow::Result<u64> {
+    async fn delete_all(&self) -> Result<u64, sqlx::Error> {
         let mut tx = self
             .pool
             .begin()

@@ -1,4 +1,4 @@
-use crate::{config::Config, error::AppError};
+use crate::config::Config;
 use async_trait::async_trait;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use user_repo::UserRepository;
@@ -11,8 +11,7 @@ pub struct Database {
 }
 
 impl Database {
-    // pub async fn connect(cfg: &Config) -> anyhow::Result<Database> {
-    pub async fn connect(cfg: &Config) -> Result<Database, AppError> {
+    pub async fn connect(cfg: &Config) -> Result<Database, sqlx::Error> {
         let pool = PgPoolOptions::new()
             .max_connections(cfg.postgres_pool)
             .connect(&cfg.postgres_uri())
@@ -21,8 +20,7 @@ impl Database {
         Ok(Database { pool })
     }
 
-    // pub async fn migrate(&self) -> anyhow::Result<()> {
-    pub async fn migrate(&self) -> Result<(), AppError> {
+    pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
         sqlx::migrate!("./src/database/migrations")
             .run(&self.pool)
             .await?;
