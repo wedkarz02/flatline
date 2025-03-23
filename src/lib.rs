@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
+use crate::database::postgres::PostgresDatabase;
 use config::Config;
-use database::{Database, Repository};
+use database::Database;
 
 pub mod config;
 pub mod database;
@@ -11,7 +12,7 @@ pub mod routes;
 
 #[derive(Clone)]
 pub struct AppState {
-    db: Arc<dyn Repository + Send + Sync>,
+    db: Arc<dyn Database>,
     config: Config,
 }
 
@@ -19,17 +20,14 @@ pub async fn run() -> anyhow::Result<()> {
     let config = Config::parse();
     tracing::info!("Environment configuration loaded: {:?}", config);
 
-    let db = Database::connect(&config).await?;
-    tracing::info!("Connected to Postgres");
+    let db: Arc<dyn Database> = PostgresDatabase::connect(&config).await?;
+    tracing::info!("Connected to the database");
 
     db.migrate()
         .await?;
-    tracing::info!("Migrations run");
+    tracing::info!("Migrations executed");
 
-    let state = Arc::new(AppState {
-        db: Arc::new(db),
-        config,
-    });
+    let state = Arc::new(AppState { db, config });
 
     let listener = tokio::net::TcpListener::bind(
         state

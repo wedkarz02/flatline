@@ -1,42 +1,46 @@
-use crate::config::Config;
+use std::str::FromStr;
+
 use async_trait::async_trait;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
-use user_repo::UserRepository;
+use uuid::Uuid;
 
-mod user_repo;
+use crate::models::user::User;
 
-#[derive(Clone)]
-pub struct Database {
-    pub pool: Pool<Postgres>,
+pub mod postgres;
+
+#[derive(Debug, Clone)]
+pub enum SupportedDatabases {
+    Postgres,
 }
 
-impl Database {
-    pub async fn connect(cfg: &Config) -> Result<Database, sqlx::Error> {
-        let pool = PgPoolOptions::new()
-            .max_connections(cfg.postgres_pool)
-            .connect(&cfg.postgres_uri())
-            .await?;
+impl FromStr for SupportedDatabases {
+    type Err = String;
 
-        Ok(Database { pool })
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "postgres" => Ok(Self::Postgres),
+            _ => Err(s.to_owned()),
+        }
     }
+}
 
-    pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
-        sqlx::migrate!("./src/database/migrations")
-            .run(&self.pool)
-            .await?;
-
-        Ok(())
+impl ToString for SupportedDatabases {
+    fn to_string(&self) -> String {
+        match self {
+            SupportedDatabases::Postgres => String::from("postgresql"),
+        }
     }
 }
 
 #[async_trait]
-pub trait Repository {
+pub trait Database: Send + Sync {
+    async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError>;
     fn users(&self) -> &dyn UserRepository;
 }
 
 #[async_trait]
-impl Repository for Database {
-    fn users(&self) -> &dyn UserRepository {
-        self
-    }
+pub trait UserRepository {
+    async fn create(&self, username: &str, password: &str) -> Result<User, sqlx::Error>;
+    async fn find_all(&self) -> Result<Vec<User>, sqlx::Error>;
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error>;
+    async fn delete_all(&self) -> Result<u64, sqlx::Error>;
 }

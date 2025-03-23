@@ -1,20 +1,46 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use uuid::Uuid;
 
-use crate::models::user::User;
+use crate::{config::Config, models::user::User};
 
-use super::Database;
+use super::{Database, UserRepository};
 
-#[async_trait]
-pub trait UserRepository {
-    async fn create(&self, username: &str, password: &str) -> Result<User, sqlx::Error>;
-    async fn find_all(&self) -> Result<Vec<User>, sqlx::Error>;
-    async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error>;
-    async fn delete_all(&self) -> Result<u64, sqlx::Error>;
+#[derive(Clone)]
+pub struct PostgresDatabase {
+    pub pool: Pool<Postgres>,
+}
+
+impl PostgresDatabase {
+    pub async fn connect(cfg: &Config) -> Result<Arc<dyn Database>, sqlx::Error> {
+        let pool = PgPoolOptions::new()
+            .max_connections(cfg.database_pool)
+            .connect(&cfg.database_uri())
+            .await?;
+
+        Ok(Arc::new(Self { pool }))
+    }
 }
 
 #[async_trait]
-impl UserRepository for Database {
+impl Database for PostgresDatabase {
+    async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
+        sqlx::migrate!("./src/database/migrations")
+            .run(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    fn users(&self) -> &dyn UserRepository {
+        self
+    }
+}
+
+#[async_trait]
+impl UserRepository for PostgresDatabase {
     async fn create(&self, username: &str, password: &str) -> Result<User, sqlx::Error> {
         let mut tx = self
             .pool

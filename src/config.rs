@@ -1,15 +1,19 @@
 use std::net::SocketAddr;
 
+use crate::database::SupportedDatabases;
+
 #[derive(Clone)]
 pub struct Config {
     pub api_host: String,
     pub api_port: u16,
-    pub postgres_host: String,
-    pub postgres_port: u16,
-    pub postgres_user: String,
-    pub postgres_password: String,
-    pub postgres_db: String,
-    pub postgres_pool: u32,
+
+    pub database_host: String,
+    pub database_port: u16,
+    pub database_user: String,
+    pub database_password: String,
+    pub database_name: String,
+    pub database_pool: u32,
+    pub database_variant: SupportedDatabases,
 }
 
 impl std::fmt::Debug for Config {
@@ -17,12 +21,13 @@ impl std::fmt::Debug for Config {
         f.debug_struct("Config")
             .field("api_host", &self.api_host)
             .field("api_port", &self.api_port)
-            .field("postgres_host", &self.postgres_host)
-            .field("postgres_port", &self.postgres_port)
-            .field("postgres_user", &self.postgres_user)
-            .field("postgres_password", &"***")
-            .field("postgres_db", &self.postgres_db)
-            .field("postgres_pool", &self.postgres_pool)
+            .field("database_host", &self.database_host)
+            .field("database_port", &self.database_port)
+            .field("database_user", &self.database_user)
+            .field("database_password", &"***")
+            .field("database_name", &self.database_name)
+            .field("database_pool", &self.database_pool)
+            .field("database_variant", &self.database_variant)
             .finish()
     }
 }
@@ -35,29 +40,35 @@ impl Config {
             .parse()
             .expect("API_PORT should be of type u16");
 
-        let postgres_host = std::env::var("POSTGRES_HOST").expect("POSTGRES_HOST should be set");
-        let postgres_port = std::env::var("POSTGRES_PORT")
-            .expect("POSTGRES_PORT should be set")
+        let database_host = std::env::var("DATABASE_HOST").expect("DATABASE_HOST should be set");
+        let database_port = std::env::var("DATABASE_PORT")
+            .expect("DATABASE_PORT should be set")
             .parse()
-            .expect("POSTGRES_PORT should be of type u16");
-        let postgres_user = std::env::var("POSTGRES_USER").expect("POSTGRES_USER should be set");
-        let postgres_password =
-            std::env::var("POSTGRES_PASSWORD").expect("POSTGRES_PASSWORD should be set");
-        let postgres_db = std::env::var("POSTGRES_DB").expect("POSTGRES_DB should be set");
-        let postgres_pool = std::env::var("POSTGRES_POOL")
-            .expect("POSTGRES_POOL should be set")
+            .expect("DATABASE_PORT should be of type u16");
+        let database_user = std::env::var("DATABASE_USER").expect("DATABASE_USER should be set");
+        let database_password =
+            std::env::var("DATABASE_PASSWORD").expect("DATABASE_PASSWORD should be set");
+        let database_name = std::env::var("DATABASE_NAME").expect("DATABASE_NAME should be set");
+        let database_pool = std::env::var("DATABASE_POOL")
+            .expect("DATABASE_POOL should be set")
             .parse()
-            .expect("POSTGRES_POOL should be of type u32");
+            .expect("DATABASE_POOL should be of type u32");
+
+        let database_variant: SupportedDatabases = std::env::var("DATABASE_VARIANT")
+            .expect("DATABASE_VARIANT should be set")
+            .parse()
+            .expect("database not supported");
 
         Config {
             api_host,
             api_port,
-            postgres_host,
-            postgres_port,
-            postgres_user,
-            postgres_password,
-            postgres_db,
-            postgres_pool,
+            database_host,
+            database_port,
+            database_user,
+            database_password,
+            database_name,
+            database_pool,
+            database_variant,
         }
     }
 
@@ -67,14 +78,16 @@ impl Config {
             .expect("{}:{} should be a viable socket address")
     }
 
-    pub fn postgres_uri(&self) -> String {
+    pub fn database_uri(&self) -> String {
         format!(
-            "postgresql://{}:{}@{}:{}/{}",
-            self.postgres_user,
-            self.postgres_password,
-            self.postgres_host,
-            self.postgres_port,
-            self.postgres_db
+            "{}://{}:{}@{}:{}/{}",
+            self.database_variant
+                .to_string(),
+            self.database_user,
+            self.database_password,
+            self.database_host,
+            self.database_port,
+            self.database_name
         )
     }
 }
