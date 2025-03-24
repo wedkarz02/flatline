@@ -8,7 +8,7 @@ use crate::{config::Config, models::user::User};
 
 use super::{Database, UserRepository};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PostgresDatabase {
     pub pool: Pool<Postgres>,
 }
@@ -42,10 +42,7 @@ impl Database for PostgresDatabase {
 #[async_trait]
 impl UserRepository for PostgresDatabase {
     async fn create(&self, username: &str, password: &str) -> Result<User, sqlx::Error> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await?;
+        let mut tx = self.pool.begin().await?;
 
         let created_user = sqlx::query_as::<_, User>("INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id, username, password")
             .bind(username)
@@ -53,9 +50,7 @@ impl UserRepository for PostgresDatabase {
             .fetch_one(&mut *tx)
             .await?;
 
-        tx.commit()
-            .await?;
-
+        tx.commit().await?;
         Ok(created_user)
     }
 
@@ -77,19 +72,14 @@ impl UserRepository for PostgresDatabase {
     }
 
     async fn delete_all(&self) -> Result<u64, sqlx::Error> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await?;
+        let mut tx = self.pool.begin().await?;
 
         let deleted_count = sqlx::query("DELETE FROM users")
             .execute(&mut *tx)
             .await?
             .rows_affected();
 
-        tx.commit()
-            .await?;
-
+        tx.commit().await?;
         Ok(deleted_count)
     }
 }

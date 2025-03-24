@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use crate::database::SupportedDatabases;
+use crate::database::DatabaseVariant;
 
 #[derive(Clone)]
 pub struct Config {
@@ -13,7 +13,7 @@ pub struct Config {
     pub database_password: String,
     pub database_name: String,
     pub database_pool: u32,
-    pub database_variant: SupportedDatabases,
+    pub database_variant: DatabaseVariant,
 }
 
 impl std::fmt::Debug for Config {
@@ -54,7 +54,7 @@ impl Config {
             .parse()
             .expect("DATABASE_POOL should be of type u32");
 
-        let database_variant: SupportedDatabases = std::env::var("DATABASE_VARIANT")
+        let database_variant: DatabaseVariant = std::env::var("DATABASE_VARIANT")
             .expect("DATABASE_VARIANT should be set")
             .parse()
             .expect("database not supported");
@@ -81,8 +81,7 @@ impl Config {
     pub fn database_uri(&self) -> String {
         format!(
             "{}://{}:{}@{}:{}/{}",
-            self.database_variant
-                .to_string(),
+            self.database_variant,
             self.database_user,
             self.database_password,
             self.database_host,

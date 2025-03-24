@@ -8,11 +8,11 @@ use crate::models::user::User;
 pub mod postgres;
 
 #[derive(Debug, Clone)]
-pub enum SupportedDatabases {
+pub enum DatabaseVariant {
     Postgres,
 }
 
-impl FromStr for SupportedDatabases {
+impl FromStr for DatabaseVariant {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -23,16 +23,16 @@ impl FromStr for SupportedDatabases {
     }
 }
 
-impl ToString for SupportedDatabases {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for DatabaseVariant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SupportedDatabases::Postgres => String::from("postgresql"),
+            DatabaseVariant::Postgres => write!(f, "postgresql"),
         }
     }
 }
 
 #[async_trait]
-pub trait Database: Send + Sync {
+pub trait Database: Send + Sync + std::fmt::Debug {
     async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError>;
     fn users(&self) -> &dyn UserRepository;
 }

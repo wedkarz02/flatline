@@ -1,5 +1,6 @@
 use axum::{http::StatusCode, response::IntoResponse};
-use axum_extra::json;
+
+use crate::routes::ApiResponse;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
@@ -9,17 +10,19 @@ pub enum AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
-        let (status, body) = match self {
+        let (status, msg) = match self {
             AppError::Internal(error) => {
                 tracing::error!("{}", error);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Something went wrong".to_owned(),
-                )
+                (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong")
             }
         };
 
-        (status, json!({ "error": body })).into_response()
+        ApiResponse::builder()
+            .with_success(false)
+            .with_code(status)
+            .with_message(msg)
+            .build()
+            .into_response()
     }
 }
 
