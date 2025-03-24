@@ -79,14 +79,20 @@ impl Config {
     }
 
     pub fn database_uri(&self) -> String {
-        format!(
-            "{}://{}:{}@{}:{}/{}",
-            self.database_variant,
-            self.database_user,
-            self.database_password,
-            self.database_host,
-            self.database_port,
-            self.database_name
-        )
+        match self.database_variant {
+            DatabaseVariant::Postgres | DatabaseVariant::MySql => format!(
+                "{}://{}:{}@{}:{}/{}",
+                self.database_variant,
+                self.database_user,
+                self.database_password,
+                self.database_host,
+                self.database_port,
+                self.database_name
+            ),
+            DatabaseVariant::Sqlite => {
+                format!("{}://{}", self.database_variant, self.database_name)
+            }
+            DatabaseVariant::Mock => "in-memory".to_string(),
+        }
     }
 }

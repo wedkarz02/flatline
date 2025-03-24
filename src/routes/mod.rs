@@ -4,7 +4,7 @@ use axum::{http::StatusCode, response::IntoResponse, Json, Router};
 use serde::{Deserialize, Serialize};
 use tower_http::trace::TraceLayer;
 
-use crate::AppState;
+use crate::{error::AppError, AppState};
 
 pub mod user;
 
@@ -81,8 +81,13 @@ impl ApiResponseBuilder {
     }
 }
 
+pub async fn fallback_handler(req: axum::extract::Request) -> Result<(), AppError> {
+    Err(AppError::NotFound(req.uri().to_string()))
+}
+
 pub fn create_routes(state: Arc<AppState>) -> Router {
     Router::new()
         .nest("/api/v1/user", user::create_routes(Arc::clone(&state)))
+        .fallback(fallback_handler)
         .layer(TraceLayer::new_for_http())
 }

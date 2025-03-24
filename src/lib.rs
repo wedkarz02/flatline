@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::database::postgres::PostgresDatabase;
 use config::Config;
-use database::Database;
+use database::{mock::MockDatabase, Database};
 
 pub mod config;
 pub mod database;
@@ -19,6 +19,9 @@ pub struct AppState {
 async fn init_database(cfg: &Config) -> anyhow::Result<Arc<dyn Database>> {
     let db: Arc<dyn Database> = match cfg.database_variant {
         database::DatabaseVariant::Postgres => PostgresDatabase::connect(cfg).await?,
+        database::DatabaseVariant::Mock => MockDatabase::new(),
+        database::DatabaseVariant::Sqlite => unimplemented!("Sqlite3 is not implemented"),
+        database::DatabaseVariant::MySql => unimplemented!("MySql is not implemented"),
     };
 
     tracing::info!("Connected to {}", cfg.database_variant);
