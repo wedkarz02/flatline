@@ -16,7 +16,7 @@ pub struct MockDatabase {
 }
 
 impl MockDatabase {
-    pub fn new() -> Arc<dyn Database> {
+    pub fn new() -> Arc<Self> {
         Arc::new(Self {
             users: Arc::new(RwLock::new(HashMap::new())),
         })
