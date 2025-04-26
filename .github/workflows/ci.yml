@@ -33,4 +33,4 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Test
-        run: cargo test --verbose
+        run: DATABASE_VARIANT=mock cargo test --verbose
