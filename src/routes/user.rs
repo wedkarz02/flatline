@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::{error::AppError, AppState};
 
-use super::ApiResponse;
+use super::{ApiResponse, ApiVersion};
 
 #[derive(Deserialize)]
 struct CreateUserReq {
@@ -21,6 +21,7 @@ struct CreateUserReq {
 }
 
 async fn create_user(
+    version: ApiVersion,
     State(state): State<Arc<AppState>>,
     Json(payload): Json<CreateUserReq>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -32,35 +33,44 @@ async fn create_user(
 
     Ok(ApiResponse::builder()
         .with_code(StatusCode::CREATED)
+        .with_api_version(version)
         .with_message("user created")
         .with_payload(serde_json::json!({ "user": created_user }))
         .build())
 }
 
-async fn get_all_users(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, AppError> {
+async fn get_all_users(
+    version: ApiVersion,
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, AppError> {
     let users = state.db.users().find_all().await?;
     Ok(ApiResponse::builder()
+        .with_api_version(version)
         .with_message(&format!("found {} users", users.len()))
         .with_payload(serde_json::json!({ "users": users }))
         .build())
 }
 
 async fn get_user_by_id(
+    version: ApiVersion,
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = state.db.users().find_by_id(id).await?;
     Ok(ApiResponse::builder()
+        .with_api_version(version)
         .with_message("user found")
         .with_payload(serde_json::json!({ "user": user }))
         .build())
 }
 
 async fn delete_all_users(
+    version: ApiVersion,
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, AppError> {
     let deleted_count = state.db.users().delete_all().await?;
     Ok(ApiResponse::builder()
+        .with_api_version(version)
         .with_message("deleted all users")
         .with_payload(serde_json::json!({ "deleted_count": deleted_count }))
         .build())
