@@ -6,7 +6,7 @@ use std::{
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::models::user::User;
+use crate::{error::AppError, models::user::User};
 
 use super::{Database, UserRepository};
 
@@ -25,7 +25,7 @@ impl MockDatabase {
 
 #[async_trait]
 impl Database for MockDatabase {
-    async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
+    async fn migrate(&self) -> Result<(), AppError> {
         tracing::warn!("no migrations needed for in-memory mock database");
         Ok(())
     }
@@ -37,29 +37,37 @@ impl Database for MockDatabase {
 
 #[async_trait]
 impl UserRepository for MockDatabase {
-    async fn create(&self, username: &str, password: &str) -> Result<User, sqlx::Error> {
+    async fn create(&self, username: &str, password: &str) -> Result<User, AppError> {
         let id = Uuid::new_v4();
-        let user = User {
+        let new_user = User {
             id,
             username: username.to_owned(),
             password: password.to_owned(),
         };
 
-        self.users.write().unwrap().insert(id, user.clone());
-        Ok(user)
+        for user in self.users.read().unwrap().values() {
+            if user.username == new_user.username {
+                return Err(AppError::Internal(anyhow::Error::msg(
+                    "username already exists",
+                )));
+            }
+        }
+
+        self.users.write().unwrap().insert(id, new_user.clone());
+        Ok(new_user)
     }
 
-    async fn find_all(&self) -> Result<Vec<User>, sqlx::Error> {
+    async fn find_all(&self) -> Result<Vec<User>, AppError> {
         let users: Vec<User> = self.users.read().unwrap().values().cloned().collect();
         Ok(users)
     }
 
-    async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error> {
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, AppError> {
         let user = self.users.read().unwrap().get(&id).cloned();
         Ok(user)
     }
 
-    async fn delete_all(&self) -> Result<u64, sqlx::Error> {
+    async fn delete_all(&self) -> Result<u64, AppError> {
         let mut users = self.users.write().unwrap();
         let deleted_count = users.len();
         users.clear();

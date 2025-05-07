@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::models::user::User;
+use crate::{error::AppError, models::user::User};
 
 pub mod mock;
 pub mod postgres;
@@ -43,16 +43,16 @@ impl std::fmt::Display for DatabaseVariant {
 
 #[async_trait]
 pub trait Database: Send + Sync {
-    async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError>;
+    async fn migrate(&self) -> Result<(), AppError>;
     fn users(&self) -> &dyn UserRepository;
 }
 
 #[async_trait]
 pub trait UserRepository {
-    async fn create(&self, username: &str, password: &str) -> Result<User, sqlx::Error>;
-    async fn find_all(&self) -> Result<Vec<User>, sqlx::Error>;
-    async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error>;
-    async fn delete_all(&self) -> Result<u64, sqlx::Error>;
+    async fn create(&self, username: &str, password: &str) -> Result<User, AppError>;
+    async fn find_all(&self) -> Result<Vec<User>, AppError>;
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, AppError>;
+    async fn delete_all(&self) -> Result<u64, AppError>;
 }
 
 #[cfg(test)]
@@ -72,11 +72,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[should_panic]
     async fn create_user_username_exists() {
         let db = MockDatabase::new();
         let _ = db.create("test_user", "test_password").await;
         let another_user_res = db.create("test_user", "another_test_password").await;
+        dbg!(&another_user_res);
         assert!(another_user_res.is_err());
     }
 
