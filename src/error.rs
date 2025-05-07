@@ -3,7 +3,7 @@ use axum::{http::StatusCode, response::IntoResponse};
 use crate::routes::ApiResponse;
 
 #[derive(Debug, thiserror::Error)]
-pub enum AppError {
+pub enum ApiError {
     #[error("bad request: {0}")]
     BadRequest(String),
     #[error("resource not found: {0}")]
@@ -12,12 +12,12 @@ pub enum AppError {
     Internal(#[from] anyhow::Error),
 }
 
-impl IntoResponse for AppError {
+impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         let (status, msg) = match self {
-            AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
-            AppError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
-            AppError::Internal(error) => {
+            ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+            ApiError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
+            ApiError::Internal(error) => {
                 tracing::error!("{}", error);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -29,22 +29,20 @@ impl IntoResponse for AppError {
         ApiResponse::builder()
             .with_success(false)
             .with_code(status)
-            // FIXME: This always defaults to 'v1', fix to get a real version here.
-            // .with_api_version(???)
             .with_message(&msg)
             .build()
             .into_response()
     }
 }
 
-impl From<sqlx::Error> for AppError {
+impl From<sqlx::Error> for ApiError {
     fn from(value: sqlx::Error) -> Self {
-        AppError::Internal(anyhow::Error::new(value))
+        ApiError::Internal(anyhow::Error::new(value))
     }
 }
 
-impl From<sqlx::migrate::MigrateError> for AppError {
+impl From<sqlx::migrate::MigrateError> for ApiError {
     fn from(value: sqlx::migrate::MigrateError) -> Self {
-        AppError::Internal(anyhow::Error::new(value))
+        ApiError::Internal(anyhow::Error::new(value))
     }
 }

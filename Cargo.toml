@@ -4,17 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.96"
-async-trait = "0.1.86"
-axum = { version = "0.8.1", features = ["macros"] }
-axum-extra = { version = "0.10.0", features = ["erased-json"] }
+anyhow = "1.0.98"
+async-trait = "0.1.88"
+axum = { version = "0.8.4", features = ["macros"] }
+axum-extra = { version = "0.10.1", features = ["erased-json"] }
 dotenvy = "0.15.7"
-serde = { version = "1.0.218", features = ["derive"] }
+flexi_logger = "0.30.1"
+log = "0.4.27"
+serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-sqlx = { version = "0.8.3", features = ["postgres", "runtime-tokio", "tls-rustls", "uuid"] }
-thiserror = "2.0.11"
-tokio = { version = "1.43.0", features = ["full"] }
+sqlx = { version = "0.8.5", features = ["postgres", "runtime-tokio", "tls-rustls", "uuid"] }
+thiserror = "2.0.12"
+tokio = { version = "1.45.0", features = ["full"] }
 tower-http = { version = "0.6.2", features = ["add-extension", "trace"] }
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-uuid = { version = "1.14.0", features = ["serde", "v4"] }
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.19", features = ["json", "env-filter", "time"] }
+uuid = { version = "1.16.0", features = ["serde", "v4"] }

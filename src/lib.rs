@@ -11,7 +11,7 @@ pub mod models;
 pub mod routes;
 
 #[derive(Clone)]
-pub struct AppState {
+pub struct ApiState {
     db: Arc<dyn Database>,
     config: Config,
 }
@@ -42,7 +42,7 @@ pub async fn run() -> anyhow::Result<()> {
     tracing::info!("Environment configuration loaded: {:?}", config);
 
     let db = init_database(&config).await?;
-    let state = Arc::new(AppState { db, config });
+    let state = Arc::new(ApiState { db, config });
 
     let listener = tokio::net::TcpListener::bind(state.config.socket_addr()).await?;
     tracing::info!("Listening on: {}", listener.local_addr()?);

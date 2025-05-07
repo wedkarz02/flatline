@@ -24,7 +24,7 @@ impl std::fmt::Debug for Config {
             .field("database_host", &self.database_host)
             .field("database_port", &self.database_port)
             .field("database_user", &self.database_user)
-            .field("database_password", &"***")
+            .field("database_password", &"<redacted>")
             .field("database_name", &self.database_name)
             .field("database_pool", &self.database_pool)
             .field("database_variant", &self.database_variant)
@@ -75,7 +75,12 @@ impl Config {
     pub fn socket_addr(&self) -> SocketAddr {
         format!("{}:{}", self.api_host, self.api_port)
             .parse()
-            .expect("{}:{} should be a viable socket address")
+            .unwrap_or_else(|_| {
+                panic!(
+                    "{}:{} should be a viable socket address",
+                    self.api_host, self.api_port
+                )
+            })
     }
 
     pub fn database_uri(&self) -> String {

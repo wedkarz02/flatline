@@ -2,15 +2,16 @@ use std::{collections::HashMap, fmt::Display, str::FromStr, sync::Arc};
 
 use axum::{
     extract::{FromRequestParts, Path},
-    http::{request::Parts, StatusCode},
+    http::{request::Parts, HeaderMap, Request, StatusCode},
     response::IntoResponse,
     routing::get,
     Json, RequestPartsExt, Router,
 };
 use serde::{Deserialize, Serialize};
-use tower_http::trace::TraceLayer;
+use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer};
+use tracing::Level;
 
-use crate::{error::AppError, AppState};
+use crate::{error::ApiError, ApiState};
 
 pub mod user;
 
@@ -103,13 +104,13 @@ pub enum ApiVersion {
 }
 
 impl FromStr for ApiVersion {
-    type Err = AppError;
+    type Err = ApiError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "v1" => Ok(Self::V1),
             "v2" => Ok(Self::V2),
-            v => Err(AppError::BadRequest(format!(
+            v => Err(ApiError::BadRequest(format!(
                 "version ({}) not supported",
                 v
             ))),
@@ -130,36 +131,56 @@ impl<S> FromRequestParts<S> for ApiVersion
 where
     S: Send + Sync,
 {
-    type Rejection = AppError;
+    type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let params: Path<HashMap<String, String>> = parts
             .extract()
             .await
-            .map_err(|e| AppError::BadRequest(format!("path rejection error: {}", e)))?;
+            .map_err(|e| ApiError::BadRequest(format!("path rejection error: {}", e)))?;
 
         let version = params
             .get("version")
-            .ok_or_else(|| AppError::BadRequest("version param missing".to_string()))?;
+            .ok_or_else(|| ApiError::BadRequest("version param missing".to_string()))?;
 
         ApiVersion::from_str(version)
     }
 }
 
-pub async fn fallback_handler(req: axum::extract::Request) -> Result<(), AppError> {
-    Err(AppError::NotFound(req.uri().to_string()))
+pub async fn fallback_handler(req: axum::extract::Request) -> Result<ApiResponse, ApiError> {
+    Err(ApiError::NotFound(req.uri().to_string()))
 }
 
-pub async fn health_check(version: ApiVersion) -> Result<impl IntoResponse, AppError> {
+pub async fn health_check(version: ApiVersion) -> Result<ApiResponse, ApiError> {
     Ok(ApiResponse::builder()
         .with_success(true)
         .with_code(StatusCode::OK)
         .with_api_version(version)
         .with_message("healthy")
+        .with_payload(serde_json::json!({
+            "pkg_name": env!("CARGO_PKG_NAME"),
+            "pkg_version": env!("CARGO_PKG_VERSION"),
+        }))
         .build())
 }
 
-pub fn create_routes(state: Arc<AppState>) -> Router {
+fn redact_headers(headers: &HeaderMap) -> Vec<(String, String)> {
+    headers
+        .iter()
+        .filter_map(|(k, v)| {
+            let key = k.as_str();
+            if key.eq_ignore_ascii_case("authorization") || key.eq_ignore_ascii_case("cookie") {
+                Some((key.to_string(), "<redacted>".to_string()))
+            } else {
+                v.to_str()
+                    .ok()
+                    .map(|val| (key.to_string(), val.to_string()))
+            }
+        })
+        .collect()
+}
+
+pub fn create_routes(state: Arc<ApiState>) -> Router {
     Router::new()
         .nest(
             "/api/{version}/user",
@@ -167,5 +188,22 @@ pub fn create_routes(state: Arc<AppState>) -> Router {
         )
         .route("/api/{version}/health", get(health_check))
         .fallback(fallback_handler)
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|req: &Request<_>| {
+                    tracing::info_span!(
+                        "http_request",
+                        method = %req.method(),
+                        uri = %req.uri(),
+                        version = ?req.version(),
+                        headers = ?redact_headers(req.headers())
+                    )
+                })
+                .on_request(DefaultOnRequest::new().level(Level::INFO))
+                .on_response(
+                    DefaultOnResponse::new()
+                        .level(Level::INFO)
+                        .latency_unit(tower_http::LatencyUnit::Millis),
+                ),
+        )
 }
