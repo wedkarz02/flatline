@@ -32,6 +32,10 @@ impl ApiResponse {
     pub fn status_code(&self) -> StatusCode {
         StatusCode::from_u16(self.code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
     }
+
+    pub fn as_ok(self) -> Result<ApiResponse, ApiError> {
+        Ok(self)
+    }
 }
 
 impl IntoResponse for ApiResponse {
@@ -152,7 +156,7 @@ pub async fn fallback_handler(req: axum::extract::Request) -> Result<ApiResponse
 }
 
 pub async fn health_check(version: ApiVersion) -> Result<ApiResponse, ApiError> {
-    Ok(ApiResponse::builder()
+    ApiResponse::builder()
         .with_success(true)
         .with_code(StatusCode::OK)
         .with_api_version(version)
@@ -161,7 +165,8 @@ pub async fn health_check(version: ApiVersion) -> Result<ApiResponse, ApiError> 
             "pkg_name": env!("CARGO_PKG_NAME"),
             "pkg_version": env!("CARGO_PKG_VERSION"),
         }))
-        .build())
+        .build()
+        .as_ok()
 }
 
 fn redact_headers(headers: &HeaderMap) -> Vec<(String, String)> {

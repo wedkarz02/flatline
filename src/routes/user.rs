@@ -30,12 +30,13 @@ async fn create_user(
         .create(&payload.username, &payload.password)
         .await?;
 
-    Ok(ApiResponse::builder()
+    ApiResponse::builder()
         .with_code(StatusCode::CREATED)
         .with_api_version(version)
         .with_message("user created")
         .with_payload(serde_json::json!({ "user": created_user }))
-        .build())
+        .build()
+        .as_ok()
 }
 
 async fn get_all_users(
@@ -43,11 +44,12 @@ async fn get_all_users(
     State(state): State<Arc<ApiState>>,
 ) -> Result<ApiResponse, ApiError> {
     let users = state.db.users().find_all().await?;
-    Ok(ApiResponse::builder()
+    ApiResponse::builder()
         .with_api_version(version)
         .with_message(&format!("found {} users", users.len()))
         .with_payload(serde_json::json!({ "users": users }))
-        .build())
+        .build()
+        .as_ok()
 }
 
 async fn get_user_by_id(
@@ -56,11 +58,12 @@ async fn get_user_by_id(
     Path(id): Path<Uuid>,
 ) -> Result<ApiResponse, ApiError> {
     let user = state.db.users().find_by_id(id).await?;
-    Ok(ApiResponse::builder()
+    ApiResponse::builder()
         .with_api_version(version)
         .with_message("user found")
         .with_payload(serde_json::json!({ "user": user }))
-        .build())
+        .build()
+        .as_ok()
 }
 
 async fn delete_all_users(
@@ -68,11 +71,12 @@ async fn delete_all_users(
     State(state): State<Arc<ApiState>>,
 ) -> Result<ApiResponse, ApiError> {
     let deleted_count = state.db.users().delete_all().await?;
-    Ok(ApiResponse::builder()
+    ApiResponse::builder()
         .with_api_version(version)
         .with_message("deleted all users")
         .with_payload(serde_json::json!({ "deleted_count": deleted_count }))
-        .build())
+        .build()
+        .as_ok()
 }
 
 pub fn create_routes(state: Arc<ApiState>) -> Router {
