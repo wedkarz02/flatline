@@ -169,20 +169,21 @@ pub async fn health_check(version: ApiVersion) -> Result<ApiResponse, ApiError> 
         .as_ok()
 }
 
-fn redact_headers(headers: &HeaderMap) -> Vec<(String, String)> {
-    headers
-        .iter()
-        .filter_map(|(k, v)| {
-            let key = k.as_str();
+fn redact_headers(headers: &HeaderMap) -> serde_json::Value {
+    let mut header_map = serde_json::Map::new();
+
+    for (k, v) in headers.iter() {
+        let key = k.as_str();
+        let value_str =
             if key.eq_ignore_ascii_case("authorization") || key.eq_ignore_ascii_case("cookie") {
-                Some((key.to_string(), "<redacted>".to_string()))
+                "<redacted>".to_string()
             } else {
-                v.to_str()
-                    .ok()
-                    .map(|val| (key.to_string(), val.to_string()))
-            }
-        })
-        .collect()
+                v.to_str().unwrap_or("[invalid utf8]").to_string()
+            };
+        header_map.insert(key.to_string(), serde_json::Value::String(value_str));
+    }
+
+    serde_json::Value::Object(header_map)
 }
 
 pub fn create_routes(state: Arc<ApiState>) -> Router {
@@ -201,7 +202,7 @@ pub fn create_routes(state: Arc<ApiState>) -> Router {
                         method = %req.method(),
                         uri = %req.uri(),
                         version = ?req.version(),
-                        headers = ?redact_headers(req.headers())
+                        headers = %redact_headers(req.headers())
                     )
                 })
                 .on_request(DefaultOnRequest::new().level(Level::INFO))

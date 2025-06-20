@@ -1,7 +1,7 @@
 use std::io;
 
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
-use tracing_subscriber::{fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
@@ -17,19 +17,17 @@ async fn main() {
     let file_layer = tracing_subscriber::fmt::layer()
         .json()
         .with_ansi(false)
-        .with_target(true)
+        .with_target(false)
         .with_current_span(true)
         .with_span_list(false)
+        .with_file(true)
         .with_thread_ids(true)
         .with_thread_names(true)
         .with_writer(non_blocking_file_writer);
 
     let console_layer = tracing_subscriber::fmt::layer()
-        .with_target(true)
+        .with_target(false)
         .with_level(true)
-        .with_thread_ids(true)
-        .with_thread_names(true)
-        .with_span_events(FmtSpan::CLOSE)
         .with_writer(io::stdout);
 
     tracing_subscriber::registry()

@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::{error::ApiError, models::user::User};
@@ -8,7 +9,7 @@ use crate::{error::ApiError, models::user::User};
 pub mod mock;
 pub mod postgres;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum DatabaseVariant {
     Postgres,
     Sqlite,

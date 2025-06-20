@@ -39,7 +39,19 @@ async fn ctrl_c() {
 
 pub async fn run() -> anyhow::Result<()> {
     let config = Config::parse();
-    tracing::info!("Environment configuration loaded: {:?}", config);
+
+    let mut config_json = serde_json::to_value(&config)?;
+    if let Some(map) = config_json.as_object_mut() {
+        map.insert(
+            "database_password".to_string(),
+            serde_json::Value::String("<redacted>".to_string()),
+        );
+    }
+
+    tracing::info!(
+        config = %config_json,
+        "Environment configuration loaded"
+    );
 
     let db = init_database(&config).await?;
     let state = Arc::new(ApiState { db, config });

@@ -1,8 +1,10 @@
 use std::net::SocketAddr;
 
+use serde::Serialize;
+
 use crate::database::DatabaseVariant;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Config {
     pub api_host: String,
     pub api_port: u16,
@@ -14,22 +16,6 @@ pub struct Config {
     pub database_name: String,
     pub database_pool: u32,
     pub database_variant: DatabaseVariant,
-}
-
-impl std::fmt::Debug for Config {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Config")
-            .field("api_host", &self.api_host)
-            .field("api_port", &self.api_port)
-            .field("database_host", &self.database_host)
-            .field("database_port", &self.database_port)
-            .field("database_user", &self.database_user)
-            .field("database_password", &"<redacted>")
-            .field("database_name", &self.database_name)
-            .field("database_pool", &self.database_pool)
-            .field("database_variant", &self.database_variant)
-            .finish()
-    }
 }
 
 impl Config {
