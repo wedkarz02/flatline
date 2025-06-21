@@ -55,10 +55,7 @@ impl Role {
                     return None;
                 }
 
-                match Role::from_str(trimmed) {
-                    Ok(role) => Some(role),
-                    Err(_) => None,
-                }
+                Role::from_str(trimmed).ok()
             })
             .collect()
     }
