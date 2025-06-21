@@ -37,24 +37,17 @@ impl Database for MockDatabase {
 
 #[async_trait]
 impl UserRepository for MockDatabase {
-    async fn create(&self, username: &str, password: &str) -> Result<User, ApiError> {
-        let id = Uuid::new_v4();
-        let new_user = User {
-            id,
-            username: username.to_owned(),
-            password: password.to_owned(),
-        };
-
-        for user in self.users.read().unwrap().values() {
-            if user.username == new_user.username {
+    async fn create(&self, user: User) -> Result<User, ApiError> {
+        for u in self.users.read().unwrap().values() {
+            if u.username == user.username {
                 return Err(ApiError::Internal(anyhow::Error::msg(
                     "username already exists",
                 )));
             }
         }
 
-        self.users.write().unwrap().insert(id, new_user.clone());
-        Ok(new_user)
+        self.users.write().unwrap().insert(user.id, user.clone());
+        Ok(user)
     }
 
     async fn find_all(&self) -> Result<Vec<User>, ApiError> {

@@ -41,14 +41,24 @@ impl Database for PostgresDatabase {
 
 #[async_trait]
 impl UserRepository for PostgresDatabase {
-    async fn create(&self, username: &str, password: &str) -> Result<User, ApiError> {
+    async fn create(&self, user: User) -> Result<User, ApiError> {
         let mut tx = self.pool.begin().await?;
 
-        let created_user = sqlx::query_as::<_, User>("INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id, username, password")
-            .bind(username)
-            .bind(password)
-            .fetch_one(&mut *tx)
-            .await?;
+        let created_user = sqlx::query_as::<_, User>(
+            r#"
+            INSERT INTO users (id, username, password_hash, roles, created_at, updated_at) 
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, username, password_hash, roles, created_at, updated_at
+            "#,
+        )
+        .bind(user.id)
+        .bind(user.username)
+        .bind(user.password_hash)
+        .bind(user.roles)
+        .bind(user.created_at)
+        .bind(user.updated_at)
+        .fetch_one(&mut *tx)
+        .await?;
 
         tx.commit().await?;
         Ok(created_user)

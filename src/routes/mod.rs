@@ -1,18 +1,18 @@
-use std::{collections::HashMap, fmt::Display, str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use axum::{
-    extract::{FromRequestParts, Path},
-    http::{request::Parts, HeaderMap, Request, StatusCode},
+    http::{HeaderMap, Request, StatusCode},
     response::IntoResponse,
     routing::get,
-    Json, RequestPartsExt, Router,
+    Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
-use crate::{error::ApiError, ApiState};
+use crate::{error::ApiError, routes::extractors::ApiVersion, ApiState};
 
+pub mod extractors;
 pub mod user;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -98,56 +98,6 @@ impl ApiResponseBuilder {
             message: self.message,
             payload: self.payload,
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum ApiVersion {
-    V1,
-    V2,
-}
-
-impl FromStr for ApiVersion {
-    type Err = ApiError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "v1" => Ok(Self::V1),
-            "v2" => Ok(Self::V2),
-            v => Err(ApiError::BadRequest(format!(
-                "version ({}) not supported",
-                v
-            ))),
-        }
-    }
-}
-
-impl Display for ApiVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ApiVersion::V1 => write!(f, "v1"),
-            ApiVersion::V2 => write!(f, "v2"),
-        }
-    }
-}
-
-impl<S> FromRequestParts<S> for ApiVersion
-where
-    S: Send + Sync,
-{
-    type Rejection = ApiError;
-
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let params: Path<HashMap<String, String>> = parts
-            .extract()
-            .await
-            .map_err(|e| ApiError::BadRequest(format!("path rejection error: {}", e)))?;
-
-        let version = params
-            .get("version")
-            .ok_or_else(|| ApiError::BadRequest("version param missing".to_string()))?;
-
-        ApiVersion::from_str(version)
     }
 }
 
