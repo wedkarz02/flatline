@@ -16,6 +16,9 @@ pub struct Config {
     pub database_name: String,
     pub database_pool: u32,
     pub database_variant: DatabaseVariant,
+
+    pub jwt_access_secret: String,
+    pub jwt_refresh_secret: String,
 }
 
 impl Config {
@@ -39,15 +42,20 @@ impl Config {
             .expect("DATABASE_POOL should be set")
             .parse()
             .expect("DATABASE_POOL should be of type u32");
-
         let database_variant: DatabaseVariant = std::env::var("DATABASE_VARIANT")
             .expect("DATABASE_VARIANT should be set")
             .parse()
             .expect("database not supported");
 
+        let jwt_access_secret =
+            std::env::var("JWT_ACCESS_SECRET").expect("JWT_ACCESS_SECRET should be set");
+        let jwt_refresh_secret =
+            std::env::var("JWT_REFRESH_SECRET").expect("JWT_REFRESH_SECRET should be set");
+
         Config {
             api_host,
             api_port,
+
             database_host,
             database_port,
             database_user,
@@ -55,6 +63,9 @@ impl Config {
             database_name,
             database_pool,
             database_variant,
+
+            jwt_access_secret,
+            jwt_refresh_secret,
         }
     }
 
