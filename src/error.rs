@@ -1,4 +1,4 @@
-use axum::{http::StatusCode, response::IntoResponse};
+use axum::{extract::rejection::PathRejection, http::StatusCode, response::IntoResponse};
 
 use crate::routes::ApiResponse;
 
@@ -32,6 +32,12 @@ impl IntoResponse for ApiError {
             .with_message(&msg)
             .build()
             .into_response()
+    }
+}
+
+impl From<PathRejection> for ApiError {
+    fn from(value: PathRejection) -> Self {
+        ApiError::BadRequest(format!("path rejection error: {}", value))
     }
 }
 

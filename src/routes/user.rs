@@ -1,17 +1,21 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path, State},
+    extract::State,
     http::StatusCode,
     routing::{delete, get, post},
     Json, Router,
 };
 use serde::Deserialize;
-use uuid::Uuid;
 
-use crate::{error::ApiError, ApiState};
+use crate::{
+    error::ApiError,
+    models::user::{Role, User},
+    routes::extractors::{ApiVersion, VerIdParams},
+    ApiState,
+};
 
-use super::{ApiResponse, ApiVersion};
+use super::ApiResponse;
 
 #[derive(Deserialize)]
 struct CreateUserReq {
@@ -24,11 +28,8 @@ async fn create_user(
     State(state): State<Arc<ApiState>>,
     Json(payload): Json<CreateUserReq>,
 ) -> Result<ApiResponse, ApiError> {
-    let created_user = state
-        .db
-        .users()
-        .create(&payload.username, &payload.password)
-        .await?;
+    let new_user = User::new(&payload.username, &payload.password, &[Role::User]);
+    let created_user = state.db.users().create(new_user).await?;
 
     ApiResponse::builder()
         .with_code(StatusCode::CREATED)
@@ -53,9 +54,10 @@ async fn get_all_users(
 }
 
 async fn get_user_by_id(
-    version: ApiVersion,
+    // version: ApiVersion,
     State(state): State<Arc<ApiState>>,
-    Path(id): Path<Uuid>,
+    // Path(id): Path<Uuid>,
+    VerIdParams { version, id }: VerIdParams,
 ) -> Result<ApiResponse, ApiError> {
     let user = state.db.users().find_by_id(id).await?;
     ApiResponse::builder()
