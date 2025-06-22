@@ -1,6 +1,6 @@
 use axum::{extract::rejection::PathRejection, http::StatusCode, response::IntoResponse};
 
-use crate::routes::ApiResponse;
+use crate::{routes::ApiResponse, services::auth::AuthError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
@@ -8,6 +8,8 @@ pub enum ApiError {
     BadRequest(String),
     #[error("resource not found: {0}")]
     NotFound(String),
+    #[error("Authentication error: {0}")]
+    Auth(#[from] AuthError),
     #[error("internal server error: {0}")]
     Internal(#[from] anyhow::Error),
 }
@@ -17,6 +19,7 @@ impl IntoResponse for ApiError {
         let (status, msg) = match self {
             ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             ApiError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
+            ApiError::Auth(ref auth_err) => (auth_err.status_code(), self.to_string()),
             ApiError::Internal(error) => {
                 tracing::error!("{}", error);
                 (

@@ -2,6 +2,36 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, SaltString},
     Argon2, PasswordVerifier,
 };
+use axum::http::StatusCode;
+
+#[derive(Debug, thiserror::Error)]
+pub enum AuthError {
+    #[error("Invalid credentials")]
+    InvalidCredentials,
+    #[error("Unauthorized")]
+    Unauthorized,
+    #[error("Forbidden")]
+    Forbidden,
+    #[error("Token is invalid")]
+    TokenInvalid,
+    #[error("Token has expired")]
+    TokenExpired,
+    #[error("Username already taken")]
+    UsernameAlreadyTaken,
+}
+
+impl AuthError {
+    pub fn status_code(&self) -> StatusCode {
+        match self {
+            AuthError::InvalidCredentials => StatusCode::UNAUTHORIZED,
+            AuthError::Unauthorized => StatusCode::UNAUTHORIZED,
+            AuthError::Forbidden => StatusCode::FORBIDDEN,
+            AuthError::TokenInvalid => StatusCode::UNAUTHORIZED,
+            AuthError::TokenExpired => StatusCode::UNAUTHORIZED,
+            AuthError::UsernameAlreadyTaken => StatusCode::CONFLICT,
+        }
+    }
+}
 
 pub fn hash_password(password: &str) -> String {
     let salt = SaltString::generate(&mut OsRng);

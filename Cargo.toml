@@ -2,6 +2,12 @@
 name = "flatline"
 version = "0.1.0"
 edition = "2021"
+description = "description - TBA"
+authors = ["wedkarz02"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/wedkarz02/flatline"
+exclude = ["/.github/*", "/logs/*"]
 
 [dependencies]
 anyhow = "1.0.98"
@@ -10,6 +16,7 @@ async-trait = "0.1.88"
 axum = { version = "0.8.4", features = ["macros"] }
 axum-extra = { version = "0.10.1", features = ["erased-json"] }
 chrono = { version = "0.4.41", features = ["serde"] }
+clap = { version = "4.5.40", features = ["derive"] }
 dotenvy = "0.15.7"
 jsonwebtoken = "9.3.1"
 serde = { version = "1.0.219", features = ["derive"] }

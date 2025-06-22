@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use crate::database::postgres::PostgresDatabase;
 use config::Config;
@@ -57,8 +57,12 @@ async fn ctrl_c() {
     tracing::info!("Ctrl-C signal received, shutting down...");
 }
 
-pub async fn run() -> anyhow::Result<()> {
-    let config = Config::parse();
+pub async fn run(config_path: Option<PathBuf>) -> anyhow::Result<()> {
+    let config = match config_path {
+        Some(path) => Config::from_json(&path)?,
+        None => Config::from_env(),
+    };
+
     let redacted_config = redact_fields(
         &config,
         &[
@@ -72,6 +76,8 @@ pub async fn run() -> anyhow::Result<()> {
         config = %redacted_config,
         "Environment configuration loaded"
     );
+
+    dbg!(&config);
 
     let db = init_database(&config).await?;
     let state = Arc::new(ApiState { db, config });

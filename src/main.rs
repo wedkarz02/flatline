@@ -1,11 +1,23 @@
-use std::io;
+use std::{io, path::PathBuf};
 
+use clap::Parser;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+#[derive(Debug, clap::Parser)]
+#[command(author, version, about, long_about = None)]
+pub struct Args {
+    /// Optional path to a configuration JSON file
+    #[arg(short, long, value_name = "FILE")]
+    pub config: Option<PathBuf>,
+}
+
 #[tokio::main]
 async fn main() {
-    dotenvy::dotenv().ok();
+    let args = Args::parse();
+    if args.config.is_none() {
+        dotenvy::dotenv().ok();
+    }
 
     let file_appender = RollingFileAppender::new(
         Rotation::DAILY,
@@ -42,7 +54,7 @@ async fn main() {
 
     tracing::info!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    if let Err(e) = flatline::run().await {
+    if let Err(e) = flatline::run(args.config).await {
         tracing::error!("{}", e);
         panic!("{}", e);
     }
