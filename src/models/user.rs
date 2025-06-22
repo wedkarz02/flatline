@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::error::ApiError;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Role {
     User,
     Admin,
@@ -86,5 +86,34 @@ impl User {
 
     pub fn has_role(&self, role: Role) -> bool {
         self.roles.contains(&role.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn role_string_from_vec() {
+        let roles = vec![Role::User, Role::Admin];
+        let role_string = Role::from_vec(&roles);
+
+        assert_eq!("user,admin", role_string);
+    }
+
+    #[test]
+    fn roles_from_string() {
+        let role_string = "user,admin";
+        let roles = Role::to_vec(role_string);
+
+        assert_eq!(vec![Role::User, Role::Admin], roles);
+    }
+
+    #[test]
+    fn user_has_role() {
+        let user = User::new("test_user", "test_hash", &[Role::User]);
+
+        assert!(user.has_role(Role::User));
+        assert!(!user.has_role(Role::Admin));
     }
 }
