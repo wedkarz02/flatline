@@ -77,8 +77,6 @@ pub async fn run(config_path: Option<PathBuf>) -> anyhow::Result<()> {
         "Environment configuration loaded"
     );
 
-    dbg!(&config);
-
     let db = init_database(&config).await?;
     let state = Arc::new(ApiState { db, config });
 

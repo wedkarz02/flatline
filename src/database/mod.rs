@@ -53,6 +53,7 @@ pub trait UserRepository {
     async fn create(&self, user: User) -> Result<User, ApiError>;
     async fn find_all(&self) -> Result<Vec<User>, ApiError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, ApiError>;
+    async fn find_by_username(&self, username: &str) -> Result<Option<User>, ApiError>;
     async fn delete_all(&self) -> Result<u64, ApiError>;
 }
 

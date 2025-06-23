@@ -75,10 +75,19 @@ impl UserRepository for PostgresDatabase {
     async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, ApiError> {
         let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(id)
-            .fetch_one(&self.pool)
+            .fetch_optional(&self.pool)
             .await?;
 
-        Ok(Some(user))
+        Ok(user)
+    }
+
+    async fn find_by_username(&self, username: &str) -> Result<Option<User>, ApiError> {
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
+            .bind(username)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        Ok(user)
     }
 
     async fn delete_all(&self) -> Result<u64, ApiError> {

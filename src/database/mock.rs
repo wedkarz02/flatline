@@ -60,6 +60,18 @@ impl UserRepository for MockDatabase {
         Ok(user)
     }
 
+    async fn find_by_username(&self, username: &str) -> Result<Option<User>, ApiError> {
+        let user = self
+            .users
+            .read()
+            .unwrap()
+            .values()
+            .find(|user| user.username == username)
+            .cloned();
+
+        Ok(user)
+    }
+
     async fn delete_all(&self) -> Result<u64, ApiError> {
         let mut users = self.users.write().unwrap();
         let deleted_count = users.len();

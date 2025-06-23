@@ -6,27 +6,23 @@ use axum::{
     routing::{delete, get, post},
     Json, Router,
 };
-use serde::Deserialize;
 
 use crate::{
     error::ApiError,
     models::user::{Role, User},
-    routes::extractors::{ApiVersion, VerIdParams},
+    routes::{
+        auth::AuthPayload,
+        extractors::{ApiVersion, VerIdParams},
+    },
     ApiState,
 };
 
 use super::ApiResponse;
 
-#[derive(Deserialize)]
-struct CreateUserReq {
-    username: String,
-    password: String,
-}
-
 async fn create_user(
     version: ApiVersion,
     State(state): State<Arc<ApiState>>,
-    Json(payload): Json<CreateUserReq>,
+    Json(payload): Json<AuthPayload>,
 ) -> Result<ApiResponse, ApiError> {
     let new_user = User::new(&payload.username, &payload.password, &[Role::User]);
     let created_user = state.db.users().create(new_user).await?;

@@ -1,8 +1,17 @@
+use std::sync::Arc;
+
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, SaltString},
     Argon2, PasswordVerifier,
 };
 use axum::http::StatusCode;
+
+use crate::{
+    error::ApiError,
+    models::user::{Role, User},
+    routes::auth::AuthPayload,
+    ApiState,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AuthError {
@@ -45,6 +54,31 @@ pub fn verify_password(hash: &str, password: &str) -> bool {
     PasswordHash::new(hash)
         .map(|parsed_hash| Argon2::default().verify_password(password.as_bytes(), &parsed_hash))
         .is_ok_and(|res| res.is_ok())
+}
+
+pub async fn register(
+    state: &Arc<ApiState>,
+    auth_payload: AuthPayload,
+    roles: &[Role],
+) -> Result<User, ApiError> {
+    if state
+        .db
+        .users()
+        .find_by_username(&auth_payload.username)
+        .await?
+        .is_some()
+    {
+        return Err(AuthError::UsernameAlreadyTaken.into());
+    }
+
+    let new_user = User::new(
+        &auth_payload.username,
+        &hash_password(&auth_payload.password),
+        roles,
+    );
+
+    let created_user = state.db.users().create(new_user).await?;
+    Ok(created_user)
 }
 
 #[cfg(test)]

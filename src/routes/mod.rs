@@ -12,6 +12,7 @@ use tracing::Level;
 
 use crate::{error::ApiError, routes::extractors::ApiVersion, ApiState};
 
+pub mod auth;
 pub mod extractors;
 pub mod user;
 
@@ -138,6 +139,10 @@ fn redact_headers(headers: &HeaderMap) -> serde_json::Value {
 
 pub fn create_routes(state: Arc<ApiState>) -> Router {
     Router::new()
+        .nest(
+            "/api/{version}/auth",
+            auth::create_routes(Arc::clone(&state)),
+        )
         .nest(
             "/api/{version}/user",
             user::create_routes(Arc::clone(&state)),
