@@ -26,5 +26,6 @@ tokio = { version = "1.45.1", features = ["full"] }
 tower-http = { version = "0.6.6", features = ["add-extension", "trace"] }
 tracing = { version = "0.1.41", features = ["log"] }
 tracing-appender = "0.2.3"
-tracing-subscriber = { version = "0.3.19", features = ["json", "env-filter", "time"] }
+tracing-subscriber = { version = "0.3.19", features = ["json", "env-filter", "time", "valuable", "serde"] }
 uuid = { version = "1.17.0", features = ["serde", "v4"] }
+valuable = { version = "0.1.1", features = ["derive"] }

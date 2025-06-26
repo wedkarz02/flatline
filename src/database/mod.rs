@@ -42,6 +42,21 @@ impl std::fmt::Display for DatabaseVariant {
     }
 }
 
+impl valuable::Valuable for DatabaseVariant {
+    fn as_value(&self) -> valuable::Value<'_> {
+        match self {
+            DatabaseVariant::Postgres => valuable::Value::String("postgresql"),
+            DatabaseVariant::Sqlite => valuable::Value::String("sqlite3"),
+            DatabaseVariant::MySql => valuable::Value::String("mysql"),
+            DatabaseVariant::Mock => valuable::Value::String("mock"),
+        }
+    }
+
+    fn visit(&self, visit: &mut dyn valuable::Visit) {
+        visit.visit_value(self.as_value());
+    }
+}
+
 #[async_trait]
 pub trait Database: Send + Sync {
     async fn migrate(&self) -> Result<(), ApiError>;

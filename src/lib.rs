@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use crate::database::postgres::PostgresDatabase;
 use config::Config;
 use database::{mock::MockDatabase, Database};
-use serde::Serialize;
+use valuable::Valuable;
 
 pub mod config;
 pub mod database;
@@ -32,24 +32,6 @@ async fn init_database(cfg: &Config) -> anyhow::Result<Arc<dyn Database>> {
     Ok(db)
 }
 
-fn redact_fields<T>(data: &T, fields: &[&str]) -> anyhow::Result<serde_json::Value>
-where
-    T: Serialize,
-{
-    let mut data_json = serde_json::to_value(data)?;
-
-    if let Some(map) = data_json.as_object_mut() {
-        for field in fields {
-            map.insert(
-                field.to_string(),
-                serde_json::Value::String("<redacted>".to_string()),
-            );
-        }
-    }
-
-    Ok(data_json)
-}
-
 async fn ctrl_c() {
     tokio::signal::ctrl_c()
         .await
@@ -63,17 +45,8 @@ pub async fn run(config_path: Option<PathBuf>) -> anyhow::Result<()> {
         None => Config::from_env(),
     };
 
-    let redacted_config = redact_fields(
-        &config,
-        &[
-            "database_password",
-            "jwt_access_secret",
-            "jwt_refresh_secret",
-        ],
-    )?;
-
     tracing::info!(
-        config = %redacted_config,
+        config = config.redacted().as_value(),
         "Environment configuration loaded"
     );
 
