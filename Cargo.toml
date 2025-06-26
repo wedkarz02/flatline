@@ -14,7 +14,6 @@ anyhow = "1.0.98"
 argon2 = "0.5.3"
 async-trait = "0.1.88"
 axum = { version = "0.8.4", features = ["macros"] }
-axum-extra = { version = "0.10.1", features = ["erased-json"] }
 chrono = { version = "0.4.41", features = ["serde"] }
 clap = { version = "4.5.40", features = ["derive"] }
 dotenvy = "0.15.7"

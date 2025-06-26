@@ -4,6 +4,10 @@ use clap::Parser;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+// TODO: Maybe add a '--init [Optional: PATH]' option that creates a .flatline/ directory
+//       in PATH (or home dir by default) and creates both config.json template and logs/
+//       directory there. Use the PATH for logs in tracing file appender.
+
 #[derive(Debug, clap::Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {

@@ -157,7 +157,7 @@ pub fn create_routes(state: Arc<ApiState>) -> Router {
                         method = %req.method(),
                         uri = %req.uri(),
                         version = ?req.version(),
-                        headers = %redact_headers(req.headers())
+                        headers = %redact_headers(req.headers()),
                     )
                 })
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
