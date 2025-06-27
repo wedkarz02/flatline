@@ -88,15 +88,13 @@ async fn main() {
 
     let args = Args::parse();
     let config = match parse_cli(args).await {
-        Ok(res) => {
-            match res {
-                Some(c) => c,
-                None => {
-                    println!("Configuration directory initialized. Make sure to fill out the config file.");
-                    std::process::exit(0);
-                }
+        Ok(res) => match res {
+            Some(c) => c,
+            None => {
+                println!("Configuration directory initialized in '~/.{}'. Make sure to fill out the 'config.json' file.", env!("CARGO_PKG_NAME"));
+                std::process::exit(0);
             }
-        }
+        },
         Err(e) => {
             eprintln!("{}", e);
             panic!("{}", e);
