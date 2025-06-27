@@ -9,7 +9,10 @@ pub struct Config {
     pub api_host: String,
     pub api_port: u16,
 
-    #[serde(deserialize_with = "serde_from_str::deserialize")]
+    #[serde(
+        deserialize_with = "serde_from_str::deserialize",
+        serialize_with = "serde_from_str::serialize"
+    )]
     pub database_variant: DatabaseVariant,
     pub database_host: String,
     pub database_port: u16,
@@ -23,6 +26,26 @@ pub struct Config {
 
     pub jwt_access_expiration: i64,
     pub jwt_refresh_expiration: i64,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            api_host: "127.0.0.1".to_string(),
+            api_port: 8080,
+            database_variant: DatabaseVariant::Postgres,
+            database_host: "127.0.0.1".to_string(),
+            database_port: 5432,
+            database_user: "admin".to_string(),
+            database_password: "admin".to_string(),
+            database_name: "test_db".to_string(),
+            database_pool: 5,
+            jwt_access_secret: "jwt_access_secret".to_string(),
+            jwt_refresh_secret: "jwt_refresh_secret".to_string(),
+            jwt_access_expiration: 900,
+            jwt_refresh_expiration: 2592000,
+        }
+    }
 }
 
 impl Config {
@@ -104,6 +127,7 @@ impl Config {
             database_password: "<redacted>".to_string(),
             database_name: self.database_name.clone(),
             database_pool: self.database_pool,
+
             jwt_access_secret: "<redacted>".to_string(),
             jwt_refresh_secret: "<redacted>".to_string(),
             jwt_access_expiration: self.jwt_access_expiration,
@@ -144,7 +168,7 @@ impl Config {
 mod serde_from_str {
     use std::str::FromStr;
 
-    use serde::{de, Deserialize, Deserializer};
+    use serde::{de, Deserialize, Deserializer, Serializer};
 
     pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
     where
@@ -154,5 +178,13 @@ mod serde_from_str {
     {
         let s = String::deserialize(deserializer)?;
         T::from_str(&s).map_err(de::Error::custom)
+    }
+
+    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: ToString,
+        S: Serializer,
+    {
+        serializer.serialize_str(&value.to_string())
     }
 }

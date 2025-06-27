@@ -22,7 +22,7 @@ impl FromStr for DatabaseVariant {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "postgres" => Ok(Self::Postgres),
+            "postgresql" => Ok(Self::Postgres),
             "sqlite3" => Ok(Self::Sqlite),
             "mysql" => Ok(Self::MySql),
             "mock" => Ok(Self::Mock),

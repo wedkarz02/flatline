@@ -1,9 +1,8 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use crate::database::postgres::PostgresDatabase;
 use config::Config;
 use database::{mock::MockDatabase, Database};
-use valuable::Valuable;
 
 pub mod config;
 pub mod database;
@@ -39,17 +38,7 @@ async fn ctrl_c() {
     tracing::info!("Ctrl-C signal received, shutting down...");
 }
 
-pub async fn run(config_path: Option<PathBuf>) -> anyhow::Result<()> {
-    let config = match config_path {
-        Some(path) => Config::from_json(&path)?,
-        None => Config::from_env(),
-    };
-
-    tracing::info!(
-        config = config.redacted().as_value(),
-        "Environment configuration loaded"
-    );
-
+pub async fn run(config: Config) -> anyhow::Result<()> {
     let db = init_database(&config).await?;
     let state = Arc::new(ApiState { db, config });
 

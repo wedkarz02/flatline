@@ -2,7 +2,7 @@
     "api_host": "127.0.0.1",
     "api_port": 8080,
 
-    "database_variant": "postgres",
+    "database_variant": "postgresql",
     "database_host": "127.0.0.1",
     "database_port": 5432,
     "database_user": "admin",
@@ -12,6 +12,7 @@
 
     "jwt_access_secret": "jwt_access_secret",
     "jwt_refresh_secret": "jwt_refresh_secret",
-    "jwt_access_expiration": 15,
-    "jwt_refresh_expiration": 30
+
+    "jwt_access_expiration": 900,
+    "jwt_refresh_expiration": 2592000
 }
