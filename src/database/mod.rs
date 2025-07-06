@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{error::ApiError, models::user::User};
+use crate::{
+    error::ApiError,
+    models::{refresh_token::RefreshToken, user::User},
+};
 
 pub mod mock;
 pub mod postgres;
@@ -61,6 +64,7 @@ impl valuable::Valuable for DatabaseVariant {
 pub trait Database: Send + Sync {
     async fn migrate(&self) -> Result<(), ApiError>;
     fn users(&self) -> &dyn UserRepository;
+    fn refresh_tokens(&self) -> &dyn RefreshTokenRepository;
 }
 
 #[async_trait]
@@ -72,6 +76,11 @@ pub trait UserRepository {
     async fn delete_all(&self) -> Result<u64, ApiError>;
 }
 
+#[async_trait]
+pub trait RefreshTokenRepository {
+    async fn create(&self, refresh_token: RefreshToken) -> Result<RefreshToken, ApiError>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -81,6 +90,7 @@ mod tests {
     async fn create_user() {
         let db = MockDatabase::new();
         let user_res = db
+            .users()
             .create(User::new("test_user", "test_password", &[Role::User]))
             .await;
         assert!(user_res.is_ok());
@@ -94,9 +104,11 @@ mod tests {
     async fn create_user_username_exists() {
         let db = MockDatabase::new();
         let _ = db
+            .users()
             .create(User::new("test_user", "test_password", &[Role::User]))
             .await;
         let another_user_res = db
+            .users()
             .create(User::new(
                 "test_user",
                 "another_test_password",
@@ -110,7 +122,7 @@ mod tests {
     #[tokio::test]
     async fn find_all_users_non_found() {
         let db = MockDatabase::new();
-        let users_res = db.find_all().await;
+        let users_res = db.users().find_all().await;
         assert!(users_res.is_ok());
         assert!(users_res.unwrap().is_empty());
     }
@@ -122,6 +134,7 @@ mod tests {
 
         for i in 0..users_ctr {
             let user_res = db
+                .users()
                 .create(User::new(
                     &format!("test_user_{}", i),
                     &format!("test_password_{}", i),
@@ -146,7 +159,7 @@ mod tests {
     #[tokio::test]
     async fn find_user_by_id_not_found() {
         let db = MockDatabase::new();
-        let user_res = db.find_by_id(Uuid::new_v4()).await;
+        let user_res = db.users().find_by_id(Uuid::new_v4()).await;
         assert!(user_res.is_ok());
         assert!(user_res.unwrap().is_none());
     }
@@ -155,6 +168,7 @@ mod tests {
     async fn find_user_by_id() {
         let db = MockDatabase::new();
         let user_create_res = db
+            .users()
             .create(User::new("test_user", "test_password", &[Role::User]))
             .await;
         assert!(user_create_res.is_ok());
@@ -178,6 +192,7 @@ mod tests {
 
         for i in 0..users_ctr {
             let user_res = db
+                .users()
                 .create(User::new(
                     &format!("test_user_{}", i),
                     &format!("test_password_{}", i),

@@ -6,19 +6,25 @@ use std::{
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::{error::ApiError, models::user::User};
+use crate::{
+    database::RefreshTokenRepository,
+    error::ApiError,
+    models::{refresh_token::RefreshToken, user::User},
+};
 
 use super::{Database, UserRepository};
 
 #[derive(Debug)]
 pub struct MockDatabase {
     users: Arc<RwLock<HashMap<Uuid, User>>>,
+    refresh_tokens: Arc<RwLock<HashMap<Uuid, RefreshToken>>>,
 }
 
 impl MockDatabase {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             users: Arc::new(RwLock::new(HashMap::new())),
+            refresh_tokens: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 }
@@ -31,6 +37,10 @@ impl Database for MockDatabase {
     }
 
     fn users(&self) -> &dyn UserRepository {
+        self
+    }
+
+    fn refresh_tokens(&self) -> &dyn RefreshTokenRepository {
         self
     }
 }
@@ -77,5 +87,16 @@ impl UserRepository for MockDatabase {
         let deleted_count = users.len();
         users.clear();
         Ok(deleted_count as u64)
+    }
+}
+
+#[async_trait]
+impl RefreshTokenRepository for MockDatabase {
+    async fn create(&self, refresh_token: RefreshToken) -> Result<RefreshToken, ApiError> {
+        self.refresh_tokens
+            .write()
+            .unwrap()
+            .insert(refresh_token.jti, refresh_token.clone());
+        Ok(refresh_token)
     }
 }

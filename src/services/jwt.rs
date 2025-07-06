@@ -2,7 +2,14 @@ use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{error::ApiError, services::auth::AuthError};
+use crate::{
+    error::ApiError,
+    models::{
+        refresh_token::RefreshToken,
+        user::{Role, User},
+    },
+    services::{self, auth::AuthError},
+};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Claims {
@@ -13,6 +20,40 @@ pub struct Claims {
     pub username: String,
     pub roles: String,
     pub admin: bool,
+}
+
+impl Claims {
+    pub fn new(
+        sub: Uuid,
+        exp: i64,
+        iat: i64,
+        jti: Uuid,
+        username: String,
+        roles: String,
+        admin: bool,
+    ) -> Self {
+        Self {
+            sub,
+            exp,
+            iat,
+            jti,
+            username,
+            roles,
+            admin,
+        }
+    }
+
+    pub fn from_user(user: &User, exp: i64, iat: i64) -> Self {
+        Self {
+            sub: user.id,
+            exp,
+            iat,
+            jti: Uuid::new_v4(),
+            username: user.username.to_owned(),
+            roles: user.roles.to_owned(),
+            admin: user.has_role(Role::Admin),
+        }
+    }
 }
 
 pub fn generate_token(claims: &Claims, secret: &str) -> Result<String, ApiError> {
@@ -35,6 +76,45 @@ pub fn decode_token(token: &str, secret: &str) -> Result<Claims, ApiError> {
     })?;
 
     Ok(token_data.claims)
+}
+
+pub fn pairs_from_user(
+    user: &User,
+    aexp: i64,
+    rexp: i64,
+    asecret: &str,
+    rsecret: &str,
+) -> Result<(String, String, RefreshToken), ApiError> {
+    let now = chrono::Utc::now();
+
+    let access_claims = Claims::from_user(
+        user,
+        now.checked_add_signed(chrono::Duration::seconds(aexp))
+            .unwrap()
+            .timestamp(),
+        now.timestamp(),
+    );
+
+    let refresh_claims = Claims::from_user(
+        user,
+        now.checked_add_signed(chrono::Duration::seconds(rexp))
+            .unwrap()
+            .timestamp(),
+        now.timestamp(),
+    );
+
+    let access_token = generate_token(&access_claims, asecret)?;
+    let refresh_token = generate_token(&refresh_claims, rsecret)?;
+
+    let token_model = RefreshToken::new(
+        refresh_claims.jti,
+        refresh_claims.sub,
+        refresh_claims.exp,
+        refresh_claims.iat,
+        services::auth::hash_string(&refresh_token),
+    );
+
+    Ok((access_token, refresh_token, token_model))
 }
 
 #[cfg(test)]

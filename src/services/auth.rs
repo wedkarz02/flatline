@@ -10,6 +10,7 @@ use crate::{
     error::ApiError,
     models::user::{Role, User},
     routes::auth::AuthPayload,
+    services::jwt::pairs_from_user,
     ApiState,
 };
 
@@ -42,7 +43,7 @@ impl AuthError {
     }
 }
 
-pub fn hash_password(password: &str) -> String {
+pub fn hash_string(password: &str) -> String {
     let salt = SaltString::generate(&mut OsRng);
     Argon2::default()
         .hash_password(password.as_bytes(), &salt)
@@ -50,7 +51,7 @@ pub fn hash_password(password: &str) -> String {
         .to_string()
 }
 
-pub fn verify_password(hash: &str, password: &str) -> bool {
+pub fn verify_hash(hash: &str, password: &str) -> bool {
     PasswordHash::new(hash)
         .map(|parsed_hash| Argon2::default().verify_password(password.as_bytes(), &parsed_hash))
         .is_ok_and(|res| res.is_ok())
@@ -73,7 +74,7 @@ pub async fn register(
 
     let new_user = User::new(
         &auth_payload.username,
-        &hash_password(&auth_payload.password),
+        &hash_string(&auth_payload.password),
         roles,
     );
 
@@ -81,23 +82,50 @@ pub async fn register(
     Ok(created_user)
 }
 
+pub async fn login(
+    state: &Arc<ApiState>,
+    auth_payload: AuthPayload,
+) -> Result<(String, String), ApiError> {
+    let user = state
+        .db
+        .users()
+        .find_by_username(&auth_payload.username)
+        .await?
+        .ok_or(AuthError::InvalidCredentials)?;
+
+    if !verify_hash(&user.password_hash, &auth_payload.password) {
+        return Err(AuthError::InvalidCredentials.into());
+    }
+
+    let (access_token, refresh_token, token_model) = pairs_from_user(
+        &user,
+        state.config.jwt_access_expiration,
+        state.config.jwt_refresh_expiration,
+        &state.config.jwt_access_secret,
+        &state.config.jwt_refresh_secret,
+    )?;
+
+    let _ = state.db.refresh_tokens().create(token_model).await?;
+    Ok((access_token, refresh_token))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn verify_password_correct() {
+    fn verify_hash_correct() {
         let password = "test_password";
-        let hash = hash_password(password);
+        let hash = hash_string(password);
 
-        assert!(verify_password(&hash, password));
+        assert!(verify_hash(&hash, password));
     }
 
     #[test]
-    fn verify_password_failed() {
+    fn verify_hash_failed() {
         let password = "test_password";
-        let hash = hash_password(password);
+        let hash = hash_string(password);
 
-        assert!(!verify_password(&hash, "wrong_password"));
+        assert!(!verify_hash(&hash, "wrong_password"));
     }
 }

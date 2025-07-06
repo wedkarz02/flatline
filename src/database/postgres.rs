@@ -4,7 +4,12 @@ use async_trait::async_trait;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use uuid::Uuid;
 
-use crate::{config::Config, error::ApiError, models::user::User};
+use crate::{
+    config::Config,
+    database::RefreshTokenRepository,
+    error::ApiError,
+    models::{refresh_token::RefreshToken, user::User},
+};
 
 use super::{Database, UserRepository};
 
@@ -35,6 +40,10 @@ impl Database for PostgresDatabase {
     }
 
     fn users(&self) -> &dyn UserRepository {
+        self
+    }
+
+    fn refresh_tokens(&self) -> &dyn RefreshTokenRepository {
         self
     }
 }
@@ -100,5 +109,30 @@ impl UserRepository for PostgresDatabase {
 
         tx.commit().await?;
         Ok(deleted_count)
+    }
+}
+
+#[async_trait]
+impl RefreshTokenRepository for PostgresDatabase {
+    async fn create(&self, refresh_token: RefreshToken) -> Result<RefreshToken, ApiError> {
+        let mut tx = self.pool.begin().await?;
+
+        let created_token = sqlx::query_as::<_, RefreshToken>(
+            r#"
+            INSERT INTO refresh_tokens (jti, sub, exp, iat, token_hash) 
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING jti, sub, exp, iat, token_hash 
+            "#,
+        )
+        .bind(refresh_token.jti)
+        .bind(refresh_token.sub)
+        .bind(refresh_token.exp)
+        .bind(refresh_token.iat)
+        .bind(refresh_token.token_hash)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(created_token)
     }
 }

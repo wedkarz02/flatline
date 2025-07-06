@@ -35,8 +35,29 @@ pub async fn register(
         .as_ok()
 }
 
+pub async fn login(
+    version: ApiVersion,
+    State(state): State<Arc<ApiState>>,
+    Json(payload): Json<AuthPayload>,
+) -> Result<ApiResponse, ApiError> {
+    let (access_token, refresh_token) = services::auth::login(&state, payload).await?;
+
+    ApiResponse::builder()
+        .with_success(true)
+        .with_code(StatusCode::OK)
+        .with_api_version(version)
+        .with_message("Login successful")
+        .with_payload(json!({
+            "access_token": access_token,
+            "refresh_token": refresh_token
+        }))
+        .build()
+        .as_ok()
+}
+
 pub fn create_routes(state: Arc<ApiState>) -> Router {
     Router::new()
         .route("/register", post(register))
+        .route("/login", post(login))
         .with_state(state)
 }
