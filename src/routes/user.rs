@@ -20,8 +20,8 @@ use crate::{
 use super::ApiResponse;
 
 async fn create_user(
-    version: ApiVersion,
     State(state): State<Arc<ApiState>>,
+    version: ApiVersion,
     Json(payload): Json<AuthPayload>,
 ) -> Result<ApiResponse, ApiError> {
     let new_user = User::new(&payload.username, &payload.password, &[Role::User]);
@@ -37,8 +37,8 @@ async fn create_user(
 }
 
 async fn get_all_users(
-    version: ApiVersion,
     State(state): State<Arc<ApiState>>,
+    version: ApiVersion,
 ) -> Result<ApiResponse, ApiError> {
     let users = state.db.users().find_all().await?;
     ApiResponse::builder()
@@ -50,9 +50,7 @@ async fn get_all_users(
 }
 
 async fn get_user_by_id(
-    // version: ApiVersion,
     State(state): State<Arc<ApiState>>,
-    // Path(id): Path<Uuid>,
     VerIdParams { version, id }: VerIdParams,
 ) -> Result<ApiResponse, ApiError> {
     let user = state.db.users().find_by_id(id).await?;
@@ -65,8 +63,8 @@ async fn get_user_by_id(
 }
 
 async fn delete_all_users(
-    version: ApiVersion,
     State(state): State<Arc<ApiState>>,
+    version: ApiVersion,
 ) -> Result<ApiResponse, ApiError> {
     let deleted_count = state.db.users().delete_all().await?;
     ApiResponse::builder()

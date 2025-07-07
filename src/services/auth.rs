@@ -4,13 +4,19 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, SaltString},
     Argon2, PasswordVerifier,
 };
-use axum::http::StatusCode;
+use axum::{
+    extract::Request,
+    http::{header, StatusCode},
+    middleware::Next,
+    response::IntoResponse,
+    Extension,
+};
 
 use crate::{
     error::ApiError,
     models::user::{Role, User},
     routes::auth::AuthPayload,
-    services::jwt::pairs_from_user,
+    services::{self, jwt::pairs_from_user},
     ApiState,
 };
 
@@ -43,17 +49,17 @@ impl AuthError {
     }
 }
 
-pub fn hash_string(password: &str) -> String {
+pub fn hash_string(plain: &str) -> String {
     let salt = SaltString::generate(&mut OsRng);
     Argon2::default()
-        .hash_password(password.as_bytes(), &salt)
+        .hash_password(plain.as_bytes(), &salt)
         .unwrap()
         .to_string()
 }
 
-pub fn verify_hash(hash: &str, password: &str) -> bool {
+pub fn verify_hash(hash: &str, plain: &str) -> bool {
     PasswordHash::new(hash)
-        .map(|parsed_hash| Argon2::default().verify_password(password.as_bytes(), &parsed_hash))
+        .map(|parsed_hash| Argon2::default().verify_password(plain.as_bytes(), &parsed_hash))
         .is_ok_and(|res| res.is_ok())
 }
 
@@ -97,6 +103,8 @@ pub async fn login(
         return Err(AuthError::InvalidCredentials.into());
     }
 
+    // TODO: If exists in the database, revoke or delete the previous refresh
+    //       token before issuing another one.
     let (access_token, refresh_token, token_model) = pairs_from_user(
         &user,
         state.config.jwt_access_expiration,
@@ -107,6 +115,24 @@ pub async fn login(
 
     let _ = state.db.refresh_tokens().create(token_model).await?;
     Ok((access_token, refresh_token))
+}
+
+pub async fn auth_guard(
+    Extension(state): Extension<Arc<ApiState>>,
+    mut req: Request,
+    next: Next,
+) -> Result<impl IntoResponse, ApiError> {
+    let access_token = req
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .ok_or(AuthError::Unauthorized)?;
+
+    let claims = services::jwt::decode_token(access_token, &state.config.jwt_access_secret)?;
+    req.extensions_mut().insert(claims);
+
+    Ok(next.run(req).await)
 }
 
 #[cfg(test)]

@@ -1,6 +1,11 @@
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    routing::{get, post},
+    Extension, Json, Router,
+};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -8,7 +13,8 @@ use crate::{
     error::ApiError,
     models::user::Role,
     routes::{extractors::ApiVersion, ApiResponse},
-    services, ApiState,
+    services::{self, jwt::Claims},
+    ApiState,
 };
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -18,8 +24,8 @@ pub struct AuthPayload {
 }
 
 pub async fn register(
-    version: ApiVersion,
     State(state): State<Arc<ApiState>>,
+    version: ApiVersion,
     Json(payload): Json<AuthPayload>,
 ) -> Result<ApiResponse, ApiError> {
     let new_user = services::auth::register(&state, payload, &[Role::User]).await?;
@@ -36,8 +42,8 @@ pub async fn register(
 }
 
 pub async fn login(
-    version: ApiVersion,
     State(state): State<Arc<ApiState>>,
+    version: ApiVersion,
     Json(payload): Json<AuthPayload>,
 ) -> Result<ApiResponse, ApiError> {
     let (access_token, refresh_token) = services::auth::login(&state, payload).await?;
@@ -55,9 +61,30 @@ pub async fn login(
         .as_ok()
 }
 
+pub async fn protected(
+    Extension(claims): Extension<Claims>,
+    version: ApiVersion,
+) -> Result<ApiResponse, ApiError> {
+    ApiResponse::builder()
+        .with_code(StatusCode::IM_A_TEAPOT)
+        .with_api_version(version)
+        .with_message(&format!("Hello, {}", claims.username))
+        .build()
+        .as_ok()
+}
+
 pub fn create_routes(state: Arc<ApiState>) -> Router {
-    Router::new()
+    let public_routes = Router::new()
         .route("/register", post(register))
-        .route("/login", post(login))
+        .route("/login", post(login));
+
+    let protected_routes = Router::new()
+        .route("/protected", get(protected))
+        .layer(axum::middleware::from_fn(services::auth::auth_guard))
+        .layer(Extension(state.clone()));
+
+    Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
         .with_state(state)
 }
