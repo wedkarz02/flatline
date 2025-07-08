@@ -109,4 +109,9 @@ impl RefreshTokenRepository for MockDatabase {
         tokens.retain(|_, tok| tok.exp > now);
         Ok((original_count - tokens.len()) as u64)
     }
+
+    async fn delete_by_jti(&self, jti: Uuid) -> Result<Option<RefreshToken>, ApiError> {
+        let mut tokens = self.refresh_tokens.write().unwrap();
+        Ok(tokens.remove_entry(&jti).map(|(_, tok)| tok))
+    }
 }

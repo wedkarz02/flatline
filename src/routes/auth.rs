@@ -23,6 +23,11 @@ pub struct AuthPayload {
     pub password: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct RefreshPayload {
+    pub refresh_token: String,
+}
+
 pub async fn register(
     State(state): State<Arc<ApiState>>,
     version: ApiVersion,
@@ -61,6 +66,29 @@ pub async fn login(
         .as_ok()
 }
 
+pub async fn logout(
+    State(state): State<Arc<ApiState>>,
+    version: ApiVersion,
+    Extension(claims): Extension<Claims>,
+    Json(payload): Json<RefreshPayload>,
+) -> Result<ApiResponse, ApiError> {
+    let res = services::auth::logout(&state, &payload.refresh_token, &claims.jti).await?;
+    let mut builder = ApiResponse::builder().with_api_version(version);
+
+    builder = if let Some(jti) = res {
+        builder
+            .with_message("Session revoked")
+            .with_payload(serde_json::json!({ "session_id": jti }))
+    } else {
+        builder
+            .with_success(false)
+            .with_code(StatusCode::NOT_FOUND)
+            .with_message("Session not found")
+    };
+
+    builder.build().as_ok()
+}
+
 pub async fn protected(
     Extension(claims): Extension<Claims>,
     version: ApiVersion,
@@ -94,6 +122,7 @@ pub fn create_routes(state: Arc<ApiState>) -> Router {
         .route("/login", post(login));
 
     let protected_routes = Router::new()
+        .route("/logout", post(logout))
         .route("/protected", get(protected))
         .route("/admin", get(admin))
         .layer(axum::middleware::from_fn(services::auth::auth_guard))

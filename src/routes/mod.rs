@@ -173,3 +173,5 @@ pub fn create_routes(state: Arc<ApiState>) -> Router {
                 ),
         )
 }
+
+// TODO: Add validation to the extractors

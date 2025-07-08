@@ -11,6 +11,7 @@ pub mod models;
 pub mod routes;
 pub mod services;
 
+// TODO: Setup RedisDB for token blacklisting.
 #[derive(Clone)]
 pub struct ApiState {
     db: Arc<dyn Database>,

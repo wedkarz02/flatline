@@ -149,4 +149,22 @@ impl RefreshTokenRepository for PostgresDatabase {
         tx.commit().await?;
         Ok(deleted_count)
     }
+
+    async fn delete_by_jti(&self, jti: Uuid) -> Result<Option<RefreshToken>, ApiError> {
+        let mut tx = self.pool.begin().await?;
+
+        let tok = sqlx::query_as::<_, RefreshToken>(
+            r#"
+            DELETE FROM refresh_tokens
+            WHERE jti = $1
+            RETURNING jti, sub, exp, iat, token_hash
+            "#,
+        )
+        .bind(jti)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(tok)
+    }
 }

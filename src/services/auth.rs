@@ -11,6 +11,7 @@ use axum::{
     response::IntoResponse,
     Extension,
 };
+use uuid::Uuid;
 
 use crate::{
     error::ApiError,
@@ -103,8 +104,11 @@ pub async fn login(
         return Err(AuthError::InvalidCredentials.into());
     }
 
-    // TODO: If exists in the database, revoke or delete the previous refresh
-    //       token before issuing another one.
+    // NOTE: User can do a 'login spam' and fill the database with extra refresh tokens. Revoking
+    //       or deleting tokens won't work because the user should be able to stay logged in on
+    //       multiple devices / sessions.
+    //       Session limit could work (eg. if 5 tokens have the same 'sub' - remove the oldest one
+    //       before issuing a new one).
     let (access_token, refresh_token, token_model) = pairs_from_user(
         &user,
         state.config.jwt_access_expiration,
@@ -117,6 +121,23 @@ pub async fn login(
     Ok((access_token, refresh_token))
 }
 
+// FIXME: Once some sort of token blacklisting is setup, blacklist the access token here.
+pub async fn logout(
+    state: &Arc<ApiState>,
+    refresh_token: &str,
+    _access_jti: &Uuid,
+) -> Result<Option<Uuid>, ApiError> {
+    let claims = services::jwt::decode_token(refresh_token, &state.config.jwt_refresh_secret)?;
+    let deleted_token = state.db.refresh_tokens().delete_by_jti(claims.jti).await?;
+
+    if let Some(token) = deleted_token {
+        return Ok(Some(token.jti));
+    }
+
+    Ok(None)
+}
+
+// TODO: This should include some sort of token blacklist checks.
 pub async fn auth_guard(
     Extension(state): Extension<Arc<ApiState>>,
     mut req: Request,

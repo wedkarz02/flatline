@@ -19,7 +19,7 @@ use crate::{
 
 use super::ApiResponse;
 
-// TODO: make a service for this (and implement password hashing)
+// FIXME: make a service for this (and implement password hashing).
 async fn create_user(
     State(state): State<Arc<ApiState>>,
     version: ApiVersion,
