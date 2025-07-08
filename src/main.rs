@@ -1,20 +1,25 @@
 use std::{io, path::PathBuf};
 
 use clap::Parser;
-use flatline::config::Config;
+use flatline::{
+    config::Config,
+    init_database,
+    models::user::{Role, User},
+    services::auth::hash_string,
+};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use valuable::Valuable;
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
-pub struct Args {
+struct Args {
     #[command(subcommand)]
-    pub command: Option<Command>,
+    command: Option<Command>,
 }
 
 #[derive(Clone, Debug, clap::Subcommand)]
-pub enum Command {
+enum Command {
     /// Initialize flatline configuration in the home directory
     Init,
     /// Run with configuration from specific source
@@ -22,10 +27,15 @@ pub enum Command {
         #[command(subcommand)]
         source: ConfigSource,
     },
+    /// Execute administrative commands
+    Exec {
+        #[command(subcommand)]
+        command: ExecCommand,
+    },
 }
 
 #[derive(Clone, Debug, clap::Subcommand)]
-pub enum ConfigSource {
+enum ConfigSource {
     /// Use environment variables for configuration
     Env,
     /// Use JSON file for configuration
@@ -35,7 +45,39 @@ pub enum ConfigSource {
     },
 }
 
-async fn init_base_dir() -> anyhow::Result<()> {
+#[derive(Clone, Debug, clap::Subcommand)]
+enum ExecCommand {
+    /// Create an admin user
+    CreateAdmin {
+        /// Username for the admin user
+        #[arg(short, long)]
+        username: String,
+        /// Password for the admin user
+        #[arg(short, long)]
+        password: String,
+    },
+}
+
+impl ExecCommand {
+    async fn handle_exec_command(&self, config: Config) -> anyhow::Result<()> {
+        match self {
+            ExecCommand::CreateAdmin { username, password } => {
+                let admin_user = User::new(
+                    username,
+                    &hash_string(&password),
+                    &[Role::User, Role::Admin],
+                );
+
+                let db = init_database(&config).await?;
+                db.users().create(admin_user).await?;
+
+                Ok(())
+            }
+        }
+    }
+}
+
+fn init_base_dir() -> anyhow::Result<()> {
     let base_dir = dirs::home_dir()
         .expect("home directory should exist")
         .join(format!(".{}", env!("CARGO_PKG_NAME")));
@@ -54,10 +96,24 @@ async fn init_base_dir() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn choose_config() -> anyhow::Result<Config> {
+    let default_config_path = dirs::home_dir()
+        .expect("home directory should exist")
+        .join(format!(".{}/config.json", env!("CARGO_PKG_NAME")));
+
+    let config = match default_config_path.exists() {
+        true => Config::from_json(&default_config_path)?,
+        false => Config::from_env(),
+    };
+
+    Ok(config)
+}
+
 async fn parse_cli(args: Args) -> anyhow::Result<Option<Config>> {
     match args.command {
         Some(Command::Init) => {
-            init_base_dir().await?;
+            init_base_dir()?;
+            tracing::info!("Configuration directory initialized in '~/.{}'. Make sure to fill out the 'config.json' file.", env!("CARGO_PKG_NAME"));
             Ok(None)
         }
         Some(Command::Config { source }) => {
@@ -67,16 +123,14 @@ async fn parse_cli(args: Args) -> anyhow::Result<Option<Config>> {
             };
             Ok(Some(config))
         }
+        Some(Command::Exec { command }) => {
+            let config = choose_config()?;
+            command.handle_exec_command(config).await?;
+            tracing::info!("Administrative command executed");
+            Ok(None)
+        }
         None => {
-            let default_config_path = dirs::home_dir()
-                .expect("home directory should exist")
-                .join(format!(".{}/config.json", env!("CARGO_PKG_NAME")));
-
-            let config = match default_config_path.exists() {
-                true => Config::from_json(&default_config_path)?,
-                false => Config::from_env(),
-            };
-
+            let config = choose_config()?;
             Ok(Some(config))
         }
     }
@@ -85,21 +139,7 @@ async fn parse_cli(args: Args) -> anyhow::Result<Option<Config>> {
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-
     let args = Args::parse();
-    let config = match parse_cli(args).await {
-        Ok(res) => match res {
-            Some(c) => c,
-            None => {
-                println!("Configuration directory initialized in '~/.{}'. Make sure to fill out the 'config.json' file.", env!("CARGO_PKG_NAME"));
-                std::process::exit(0);
-            }
-        },
-        Err(e) => {
-            eprintln!("{}", e);
-            panic!("{}", e);
-        }
-    };
 
     let base_dir = dirs::home_dir()
         .expect("home directory should exist")
@@ -143,6 +183,18 @@ async fn main() {
         .init();
 
     tracing::info!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+
+    let config = match parse_cli(args).await {
+        Ok(res) => match res {
+            Some(c) => c,
+            None => std::process::exit(0),
+        },
+        Err(e) => {
+            tracing::error!("{}", e);
+            panic!("{}", e);
+        }
+    };
+
     tracing::info!(
         config = config.redacted().as_value(),
         "Configuration loaded"

@@ -17,7 +17,7 @@ pub struct ApiState {
     config: Config,
 }
 
-async fn init_database(cfg: &Config) -> anyhow::Result<Arc<dyn Database>> {
+pub async fn init_database(cfg: &Config) -> anyhow::Result<Arc<dyn Database>> {
     let db: Arc<dyn Database> = match cfg.database_variant {
         database::DatabaseVariant::Postgres => PostgresDatabase::connect(cfg).await?,
         database::DatabaseVariant::Mock => MockDatabase::new(),

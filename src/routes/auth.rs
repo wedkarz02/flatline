@@ -13,7 +13,7 @@ use crate::{
     error::ApiError,
     models::user::Role,
     routes::{extractors::ApiVersion, ApiResponse},
-    services::{self, jwt::Claims},
+    services::{self, auth::AuthError, jwt::Claims},
     ApiState,
 };
 
@@ -73,6 +73,21 @@ pub async fn protected(
         .as_ok()
 }
 
+pub async fn admin(
+    Extension(claims): Extension<Claims>,
+    version: ApiVersion,
+) -> Result<ApiResponse, ApiError> {
+    if !claims.admin {
+        return Err(AuthError::Forbidden.into());
+    }
+
+    ApiResponse::builder()
+        .with_api_version(version)
+        .with_message(&format!("Hello, admin ({})", claims.username))
+        .build()
+        .as_ok()
+}
+
 pub fn create_routes(state: Arc<ApiState>) -> Router {
     let public_routes = Router::new()
         .route("/register", post(register))
@@ -80,6 +95,7 @@ pub fn create_routes(state: Arc<ApiState>) -> Router {
 
     let protected_routes = Router::new()
         .route("/protected", get(protected))
+        .route("/admin", get(admin))
         .layer(axum::middleware::from_fn(services::auth::auth_guard))
         .layer(Extension(state.clone()));
 
