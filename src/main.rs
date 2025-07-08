@@ -1,5 +1,6 @@
 use std::{io, path::PathBuf};
 
+use anyhow::anyhow;
 use clap::Parser;
 use flatline::{
     config::Config,
@@ -22,15 +23,15 @@ struct Args {
 enum Command {
     /// Initialize flatline configuration in the home directory
     Init,
-    /// Run with configuration from specific source
-    Config {
-        #[command(subcommand)]
-        source: ConfigSource,
-    },
     /// Execute administrative commands
     Exec {
         #[command(subcommand)]
         command: ExecCommand,
+    },
+    /// Run with configuration from specific source
+    Config {
+        #[command(subcommand)]
+        source: ConfigSource,
     },
 }
 
@@ -56,20 +57,33 @@ enum ExecCommand {
         #[arg(short, long)]
         password: String,
     },
+    /// Delete expired JWT refresh tokens
+    DelExpJwt {
+        /// Confirmation flag (required)
+        #[arg(long)]
+        confirm: bool,
+    },
 }
 
 impl ExecCommand {
     async fn handle_exec_command(&self, config: Config) -> anyhow::Result<()> {
+        let db = init_database(&config).await?;
         match self {
             ExecCommand::CreateAdmin { username, password } => {
-                let admin_user = User::new(
-                    username,
-                    &hash_string(&password),
-                    &[Role::User, Role::Admin],
-                );
+                let admin_user =
+                    User::new(username, &hash_string(password), &[Role::User, Role::Admin]);
 
-                let db = init_database(&config).await?;
                 db.users().create(admin_user).await?;
+
+                Ok(())
+            }
+            ExecCommand::DelExpJwt { confirm } => {
+                if !confirm {
+                    return Err(anyhow!("Confirmation is required for this command"));
+                }
+
+                let deleted_count = db.refresh_tokens().delete_expired().await?;
+                tracing::info!("Deleted ({}) expired JWT refresh tokens", deleted_count);
 
                 Ok(())
             }
@@ -116,18 +130,18 @@ async fn parse_cli(args: Args) -> anyhow::Result<Option<Config>> {
             tracing::info!("Configuration directory initialized in '~/.{}'. Make sure to fill out the 'config.json' file.", env!("CARGO_PKG_NAME"));
             Ok(None)
         }
+        Some(Command::Exec { command }) => {
+            let config = choose_config()?;
+            command.handle_exec_command(config).await?;
+            tracing::info!("Administrative command executed");
+            Ok(None)
+        }
         Some(Command::Config { source }) => {
             let config = match source {
                 ConfigSource::Env => Config::from_env(),
                 ConfigSource::Json { path } => Config::from_json(&path)?,
             };
             Ok(Some(config))
-        }
-        Some(Command::Exec { command }) => {
-            let config = choose_config()?;
-            command.handle_exec_command(config).await?;
-            tracing::info!("Administrative command executed");
-            Ok(None)
         }
         None => {
             let config = choose_config()?;

@@ -79,6 +79,7 @@ pub trait UserRepository {
 #[async_trait]
 pub trait RefreshTokenRepository {
     async fn create(&self, refresh_token: RefreshToken) -> Result<RefreshToken, ApiError>;
+    async fn delete_expired(&self) -> Result<u64, ApiError>;
 }
 
 #[cfg(test)]

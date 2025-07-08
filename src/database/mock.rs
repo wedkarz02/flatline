@@ -99,4 +99,14 @@ impl RefreshTokenRepository for MockDatabase {
             .insert(refresh_token.jti, refresh_token.clone());
         Ok(refresh_token)
     }
+
+    async fn delete_expired(&self) -> Result<u64, ApiError> {
+        let now = chrono::Utc::now().timestamp();
+
+        let mut tokens = self.refresh_tokens.write().unwrap();
+        let original_count = tokens.len();
+
+        tokens.retain(|_, tok| tok.exp > now);
+        Ok((original_count - tokens.len()) as u64)
+    }
 }

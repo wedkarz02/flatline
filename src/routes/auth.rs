@@ -97,7 +97,7 @@ pub fn create_routes(state: Arc<ApiState>) -> Router {
         .route("/protected", get(protected))
         .route("/admin", get(admin))
         .layer(axum::middleware::from_fn(services::auth::auth_guard))
-        .layer(Extension(state.clone()));
+        .layer(Extension(Arc::clone(&state)));
 
     Router::new()
         .merge(public_routes)

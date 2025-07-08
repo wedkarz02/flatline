@@ -14,6 +14,7 @@ use crate::{error::ApiError, routes::extractors::ApiVersion, ApiState};
 
 pub mod auth;
 pub mod extractors;
+pub mod maintenance;
 pub mod user;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -142,6 +143,10 @@ pub fn create_routes(state: Arc<ApiState>) -> Router {
         .nest(
             "/api/{version}/auth",
             auth::create_routes(Arc::clone(&state)),
+        )
+        .nest(
+            "/api/{version}/maintenance",
+            maintenance::create_routes(Arc::clone(&state)),
         )
         .nest(
             "/api/{version}/user",

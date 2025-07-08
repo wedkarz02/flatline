@@ -135,4 +135,18 @@ impl RefreshTokenRepository for PostgresDatabase {
         tx.commit().await?;
         Ok(created_token)
     }
+
+    async fn delete_expired(&self) -> Result<u64, ApiError> {
+        let mut tx = self.pool.begin().await?;
+
+        let now = chrono::Utc::now().timestamp();
+        let deleted_count = sqlx::query("DELETE FROM refresh_tokens WHERE exp <= $1")
+            .bind(now)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
+
+        tx.commit().await?;
+        Ok(deleted_count)
+    }
 }
