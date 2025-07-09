@@ -9,6 +9,9 @@ readme = "README.md"
 repository = "https://github.com/wedkarz02/flatline"
 exclude = ["/.github/*", "/logs/*"]
 
+[lints.clippy]
+uninlined_format_args = "allow"
+
 [dependencies]
 anyhow = "1.0.98"
 argon2 = "0.5.3"
