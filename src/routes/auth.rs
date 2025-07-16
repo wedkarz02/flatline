@@ -11,7 +11,7 @@ use serde_json::json;
 
 use crate::{
     error::ApiError,
-    models::user::Role,
+    models::user::{Role, UserDto},
     routes::{extractors::ApiVersion, ApiResponse},
     services::{self, auth::AuthError, jwt::Claims},
     ApiState,
@@ -34,14 +34,14 @@ pub async fn register(
     Json(payload): Json<AuthPayload>,
 ) -> Result<ApiResponse, ApiError> {
     let new_user = services::auth::register(&state, payload, &[Role::User]).await?;
-    // TODO: Turn new_user into a DTO after implementing some sort of DTO system for users.
+    let user_dto = UserDto::from(&new_user);
 
     ApiResponse::builder()
         .with_success(true)
         .with_code(StatusCode::CREATED)
         .with_api_version(version)
         .with_message("User created")
-        .with_payload(json!({ "user": new_user }))
+        .with_payload(json!({ "user": user_dto }))
         .build()
         .as_ok()
 }

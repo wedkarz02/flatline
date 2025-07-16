@@ -89,6 +89,27 @@ impl User {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UserDto {
+    pub id: Uuid,
+    pub username: String,
+    pub roles: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl UserDto {
+    pub fn from(user: &User) -> Self {
+        Self {
+            id: user.id,
+            username: user.username.clone(),
+            roles: user.roles.clone(),
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

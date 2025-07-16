@@ -9,7 +9,7 @@ use axum::{
 
 use crate::{
     error::ApiError,
-    models::user::{Role, User},
+    models::user::{Role, User, UserDto},
     routes::{
         auth::AuthPayload,
         extractors::{ApiVersion, VerIdParams},
@@ -41,7 +41,15 @@ async fn get_all_users(
     State(state): State<Arc<ApiState>>,
     version: ApiVersion,
 ) -> Result<ApiResponse, ApiError> {
-    let users = state.db.users().find_all().await?;
+    let users: Vec<UserDto> = state
+        .db
+        .users()
+        .find_all()
+        .await?
+        .iter()
+        .map(|u| UserDto::from(u))
+        .collect();
+
     ApiResponse::builder()
         .with_api_version(version)
         .with_message(&format!("found {} users", users.len()))
@@ -55,10 +63,21 @@ async fn get_user_by_id(
     VerIdParams { version, id }: VerIdParams,
 ) -> Result<ApiResponse, ApiError> {
     let user = state.db.users().find_by_id(id).await?;
+    if user.is_none() {
+        return ApiResponse::builder()
+            .with_api_version(version)
+            .with_message("user not found")
+            .with_code(StatusCode::NOT_FOUND)
+            .build()
+            .as_ok();
+    }
+
+    let user_dto = UserDto::from(&user.unwrap());
+
     ApiResponse::builder()
         .with_api_version(version)
         .with_message("user found")
-        .with_payload(serde_json::json!({ "user": user }))
+        .with_payload(serde_json::json!({ "user": user_dto }))
         .build()
         .as_ok()
 }
