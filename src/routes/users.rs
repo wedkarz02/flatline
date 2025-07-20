@@ -9,30 +9,29 @@ use axum::{
 
 use crate::{
     error::ApiError,
-    models::user::{Role, User, UserDto},
+    models::user::{Role, UserDto},
     routes::{
         auth::AuthPayload,
         extractors::{ApiVersion, VerIdParams},
     },
-    ApiState,
+    services, ApiState,
 };
 
 use super::ApiResponse;
 
-// FIXME: make a service for this (and implement password hashing).
 async fn create_user(
     State(state): State<Arc<ApiState>>,
     version: ApiVersion,
     Json(payload): Json<AuthPayload>,
 ) -> Result<ApiResponse, ApiError> {
-    let new_user = User::new(&payload.username, &payload.password, &[Role::User]);
-    let created_user = state.db.users().create(new_user).await?;
+    let new_user = services::users::create_user(&state, payload, &[Role::User]).await?;
+    let user_dto = UserDto::from(new_user);
 
     ApiResponse::builder()
         .with_code(StatusCode::CREATED)
         .with_api_version(version)
         .with_message("user created")
-        .with_payload(serde_json::json!({ "user": created_user }))
+        .with_payload(serde_json::json!({ "user": user_dto }))
         .build()
         .as_ok()
 }
@@ -47,7 +46,7 @@ async fn get_all_users(
         .find_all()
         .await?
         .iter()
-        .map(|u| UserDto::from(u))
+        .map(UserDto::from)
         .collect();
 
     ApiResponse::builder()

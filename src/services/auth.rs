@@ -15,7 +15,6 @@ use uuid::Uuid;
 
 use crate::{
     error::ApiError,
-    models::user::{Role, User},
     routes::auth::AuthPayload,
     services::{self, jwt::pairs_from_user},
     ApiState,
@@ -62,31 +61,6 @@ pub fn verify_hash(hash: &str, plain: &str) -> bool {
     PasswordHash::new(hash)
         .map(|parsed_hash| Argon2::default().verify_password(plain.as_bytes(), &parsed_hash))
         .is_ok_and(|res| res.is_ok())
-}
-
-pub async fn register(
-    state: &Arc<ApiState>,
-    auth_payload: AuthPayload,
-    roles: &[Role],
-) -> Result<User, ApiError> {
-    if state
-        .db
-        .users()
-        .find_by_username(&auth_payload.username)
-        .await?
-        .is_some()
-    {
-        return Err(AuthError::UsernameAlreadyTaken.into());
-    }
-
-    let new_user = User::new(
-        &auth_payload.username,
-        &hash_string(&auth_payload.password),
-        roles,
-    );
-
-    let created_user = state.db.users().create(new_user).await?;
-    Ok(created_user)
 }
 
 pub async fn login(

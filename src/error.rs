@@ -8,7 +8,7 @@ pub enum ApiError {
     BadRequest(String),
     #[error("resource not found: {0}")]
     NotFound(String),
-    #[error("Authentication error: {0}")]
+    #[error("authentication error: {0}")]
     Auth(#[from] AuthError),
     #[error("internal server error: {0}")]
     Internal(#[from] anyhow::Error),

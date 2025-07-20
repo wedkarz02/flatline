@@ -15,7 +15,7 @@ use crate::{error::ApiError, routes::extractors::ApiVersion, ApiState};
 pub mod auth;
 pub mod extractors;
 pub mod maintenance;
-pub mod user;
+pub mod users;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiResponse {
@@ -103,11 +103,11 @@ impl ApiResponseBuilder {
     }
 }
 
-pub async fn fallback_handler(req: axum::extract::Request) -> Result<ApiResponse, ApiError> {
+async fn fallback_handler(req: axum::extract::Request) -> Result<ApiResponse, ApiError> {
     Err(ApiError::NotFound(req.uri().to_string()))
 }
 
-pub async fn health_check(version: ApiVersion) -> Result<ApiResponse, ApiError> {
+async fn health_check(version: ApiVersion) -> Result<ApiResponse, ApiError> {
     ApiResponse::builder()
         .with_success(true)
         .with_code(StatusCode::OK)
@@ -149,8 +149,8 @@ pub fn create_routes(state: Arc<ApiState>) -> Router {
             maintenance::create_routes(Arc::clone(&state)),
         )
         .nest(
-            "/api/{version}/user",
-            user::create_routes(Arc::clone(&state)),
+            "/api/{version}/users",
+            users::create_routes(Arc::clone(&state)),
         )
         .route("/api/{version}/health", get(health_check))
         .fallback(fallback_handler)

@@ -28,12 +28,12 @@ pub struct RefreshPayload {
     pub refresh_token: String,
 }
 
-pub async fn register(
+async fn register(
     State(state): State<Arc<ApiState>>,
     version: ApiVersion,
     Json(payload): Json<AuthPayload>,
 ) -> Result<ApiResponse, ApiError> {
-    let new_user = services::auth::register(&state, payload, &[Role::User]).await?;
+    let new_user = services::users::create_user(&state, payload, &[Role::User]).await?;
     let user_dto = UserDto::from(&new_user);
 
     ApiResponse::builder()
@@ -46,7 +46,7 @@ pub async fn register(
         .as_ok()
 }
 
-pub async fn login(
+async fn login(
     State(state): State<Arc<ApiState>>,
     version: ApiVersion,
     Json(payload): Json<AuthPayload>,
@@ -66,7 +66,7 @@ pub async fn login(
         .as_ok()
 }
 
-pub async fn logout(
+async fn logout(
     State(state): State<Arc<ApiState>>,
     version: ApiVersion,
     Extension(claims): Extension<Claims>,
@@ -89,7 +89,7 @@ pub async fn logout(
     builder.build().as_ok()
 }
 
-pub async fn protected(
+async fn protected(
     Extension(claims): Extension<Claims>,
     version: ApiVersion,
 ) -> Result<ApiResponse, ApiError> {
@@ -101,7 +101,7 @@ pub async fn protected(
         .as_ok()
 }
 
-pub async fn admin(
+async fn admin(
     Extension(claims): Extension<Claims>,
     version: ApiVersion,
 ) -> Result<ApiResponse, ApiError> {

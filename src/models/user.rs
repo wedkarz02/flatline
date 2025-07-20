@@ -98,8 +98,20 @@ pub struct UserDto {
     pub updated_at: DateTime<Utc>,
 }
 
-impl UserDto {
-    pub fn from(user: &User) -> Self {
+impl From<User> for UserDto {
+    fn from(user: User) -> Self {
+        Self {
+            id: user.id,
+            username: user.username.clone(),
+            roles: user.roles.clone(),
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+        }
+    }
+}
+
+impl From<&User> for UserDto {
+    fn from(user: &User) -> Self {
         Self {
             id: user.id,
             username: user.username.clone(),

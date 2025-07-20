@@ -9,7 +9,7 @@ use crate::{
     ApiState,
 };
 
-pub async fn delete_expired_jwt(
+async fn delete_expired_jwt(
     State(state): State<Arc<ApiState>>,
     version: ApiVersion,
     Extension(claims): Extension<Claims>,
