@@ -26,6 +26,8 @@ pub struct Config {
 
     pub jwt_access_expiration: i64,
     pub jwt_refresh_expiration: i64,
+
+    pub user_session_limit: usize,
 }
 
 impl Default for Config {
@@ -44,6 +46,7 @@ impl Default for Config {
             jwt_refresh_secret: "jwt_refresh_secret".to_string(),
             jwt_access_expiration: 900,
             jwt_refresh_expiration: 2592000,
+            user_session_limit: 5,
         }
     }
 }
@@ -88,6 +91,11 @@ impl Config {
             .parse::<i64>()
             .expect("JWT_REFRESH_EXPIRATION should be of type i64");
 
+        let user_session_limit = std::env::var("USER_SESSION_LIMIT")
+            .expect("USER_SESSION_LIMIT should be set")
+            .parse::<usize>()
+            .expect("USER_SESSION_LIMIT should be a numeric type");
+
         Config {
             api_host,
             api_port,
@@ -105,6 +113,8 @@ impl Config {
 
             jwt_access_expiration,
             jwt_refresh_expiration,
+
+            user_session_limit,
         }
     }
 
@@ -132,6 +142,8 @@ impl Config {
             jwt_refresh_secret: "<redacted>".to_string(),
             jwt_access_expiration: self.jwt_access_expiration,
             jwt_refresh_expiration: self.jwt_refresh_expiration,
+
+            user_session_limit: self.user_session_limit,
         }
     }
 

@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 use crate::{
     error::ApiError,
+    models::refresh_token::RefreshToken,
     routes::auth::AuthPayload,
     services::{self, jwt::pairs_from_user},
     ApiState,
@@ -66,7 +67,7 @@ pub fn verify_hash(hash: &str, plain: &str) -> bool {
 pub async fn login(
     state: &Arc<ApiState>,
     auth_payload: AuthPayload,
-) -> Result<(String, String), ApiError> {
+) -> Result<(String, String, Option<RefreshToken>), ApiError> {
     let user = state
         .db
         .users()
@@ -78,11 +79,13 @@ pub async fn login(
         return Err(AuthError::InvalidCredentials.into());
     }
 
-    // NOTE: User can do a 'login spam' and fill the database with extra refresh tokens. Revoking
-    //       or deleting tokens won't work because the user should be able to stay logged in on
-    //       multiple devices / sessions.
-    //       Session limit could work (eg. if 5 tokens have the same 'sub' - remove the oldest one
-    //       before issuing a new one).
+    // This is for session limiting that prevents the user from the 'login spam'.
+    // If the user has 'user_session_limit' or more refresh tokens in the DB, remove
+    // the oldest one before issuing a new token.
+    // NOTE: This will log out the device that uses the oldest token - 'user_session_limit' value
+    //       propably should be at least 5.
+    let deleted_token = services::jwt::revoke_oldest_token(state, user.id).await?;
+
     let (access_token, refresh_token, token_model) = pairs_from_user(
         &user,
         state.config.jwt_access_expiration,
@@ -92,7 +95,7 @@ pub async fn login(
     )?;
 
     let _ = state.db.refresh_tokens().create(token_model).await?;
-    Ok((access_token, refresh_token))
+    Ok((access_token, refresh_token, deleted_token))
 }
 
 // FIXME: Once some sort of token blacklisting is setup, blacklist the access token here.

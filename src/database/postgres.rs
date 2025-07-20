@@ -167,4 +167,14 @@ impl RefreshTokenRepository for PostgresDatabase {
         tx.commit().await?;
         Ok(tok)
     }
+
+    async fn find_by_sub(&self, sub: Uuid) -> Result<Vec<RefreshToken>, ApiError> {
+        let tokens =
+            sqlx::query_as::<_, RefreshToken>("SELECT * FROM refresh_tokens WHERE sub = $1")
+                .bind(sub)
+                .fetch_all(&self.pool)
+                .await?;
+
+        Ok(tokens)
+    }
 }

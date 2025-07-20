@@ -14,5 +14,7 @@
     "jwt_refresh_secret": "jwt_refresh_secret",
 
     "jwt_access_expiration": 900,
-    "jwt_refresh_expiration": 2592000
+    "jwt_refresh_expiration": 2592000,
+
+    "user_session_limit": 5
 }

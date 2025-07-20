@@ -51,13 +51,23 @@ async fn login(
     version: ApiVersion,
     Json(payload): Json<AuthPayload>,
 ) -> Result<ApiResponse, ApiError> {
-    let (access_token, refresh_token) = services::auth::login(&state, payload).await?;
+    let (access_token, refresh_token, deleted_token) =
+        services::auth::login(&state, payload).await?;
+
+    let msg = if let Some(token) = deleted_token {
+        format!(
+            "Login successful. Oldest session ({}) revoked due to user session limit.",
+            token.jti
+        )
+    } else {
+        String::from("Login successful.")
+    };
 
     ApiResponse::builder()
         .with_success(true)
         .with_code(StatusCode::OK)
         .with_api_version(version)
-        .with_message("Login successful")
+        .with_message(&msg)
         .with_payload(json!({
             "access_token": access_token,
             "refresh_token": refresh_token

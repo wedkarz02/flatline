@@ -114,4 +114,17 @@ impl RefreshTokenRepository for MockDatabase {
         let mut tokens = self.refresh_tokens.write().unwrap();
         Ok(tokens.remove_entry(&jti).map(|(_, tok)| tok))
     }
+
+    async fn find_by_sub(&self, sub: Uuid) -> Result<Vec<RefreshToken>, ApiError> {
+        let tokens: Vec<RefreshToken> = self
+            .refresh_tokens
+            .read()
+            .unwrap()
+            .iter()
+            .filter(|(_, tok)| tok.sub == sub)
+            .map(|(_, tok)| tok.clone())
+            .collect();
+
+        Ok(tokens)
+    }
 }

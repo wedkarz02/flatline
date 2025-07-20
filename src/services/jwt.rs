@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -9,6 +11,7 @@ use crate::{
         user::{Role, User},
     },
     services::{self, auth::AuthError},
+    ApiState,
 };
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -115,6 +118,30 @@ pub fn pairs_from_user(
     );
 
     Ok((access_token, refresh_token, token_model))
+}
+
+pub async fn revoke_oldest_token(
+    state: &Arc<ApiState>,
+    sub: Uuid,
+) -> Result<Option<RefreshToken>, ApiError> {
+    let tokens = state.db.refresh_tokens().find_by_sub(sub).await?;
+
+    if tokens.len() < state.config.user_session_limit {
+        return Ok(None);
+    }
+
+    let oldest_token = tokens
+        .iter()
+        .min_by_key(|tok| tok.iat)
+        .expect("vec will never be empty due to the if above");
+
+    let deleted_token = state
+        .db
+        .refresh_tokens()
+        .delete_by_jti(oldest_token.jti)
+        .await?;
+
+    Ok(deleted_token)
 }
 
 #[cfg(test)]
