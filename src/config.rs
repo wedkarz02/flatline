@@ -21,6 +21,9 @@ pub struct Config {
     pub database_name: String,
     pub database_pool: u32,
 
+    pub redis_host: String,
+    pub redis_port: u16,
+
     pub jwt_access_secret: String,
     pub jwt_refresh_secret: String,
 
@@ -42,6 +45,8 @@ impl Default for Config {
             database_password: "admin".to_string(),
             database_name: "test_db".to_string(),
             database_pool: 5,
+            redis_host: "redis".to_string(),
+            redis_port: 6379,
             jwt_access_secret: "jwt_access_secret".to_string(),
             jwt_refresh_secret: "jwt_refresh_secret".to_string(),
             jwt_access_expiration: 900,
@@ -77,6 +82,12 @@ impl Config {
             .parse()
             .expect("DATABASE_POOL should be of type u32");
 
+        let redis_host = std::env::var("REDIS_HOST").expect("REDIS_HOST should be set");
+        let redis_port = std::env::var("REDIS_PORT")
+            .expect("REDIS_PORT should be set")
+            .parse()
+            .expect("REDIS_PORT should be of type u16");
+
         let jwt_access_secret =
             std::env::var("JWT_ACCESS_SECRET").expect("JWT_ACCESS_SECRET should be set");
         let jwt_refresh_secret =
@@ -108,6 +119,9 @@ impl Config {
             database_name,
             database_pool,
 
+            redis_host,
+            redis_port,
+
             jwt_access_secret,
             jwt_refresh_secret,
 
@@ -137,6 +151,9 @@ impl Config {
             database_password: "<redacted>".to_string(),
             database_name: self.database_name.clone(),
             database_pool: self.database_pool,
+
+            redis_host: self.redis_host.clone(),
+            redis_port: self.redis_port,
 
             jwt_access_secret: "<redacted>".to_string(),
             jwt_refresh_secret: "<redacted>".to_string(),
@@ -174,6 +191,10 @@ impl Config {
             }
             DatabaseVariant::Mock => "in-memory".to_string(),
         }
+    }
+
+    pub fn redis_uri(&self) -> String {
+        format!("redis://{}:{}", self.redis_host, self.redis_port)
     }
 }
 

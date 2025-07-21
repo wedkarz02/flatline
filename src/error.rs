@@ -56,6 +56,12 @@ impl From<sqlx::migrate::MigrateError> for ApiError {
     }
 }
 
+impl From<redis::RedisError> for ApiError {
+    fn from(value: redis::RedisError) -> Self {
+        ApiError::Internal(anyhow::Error::new(value))
+    }
+}
+
 impl From<jsonwebtoken::errors::Error> for ApiError {
     fn from(value: jsonwebtoken::errors::Error) -> Self {
         ApiError::Internal(anyhow::Error::new(value))

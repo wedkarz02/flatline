@@ -11,6 +11,7 @@ use crate::{
 
 pub mod mock;
 pub mod postgres;
+pub mod redis;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DatabaseVariant {

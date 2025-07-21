@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::database::postgres::PostgresDatabase;
+use crate::database::{postgres::PostgresDatabase, redis::RedisCache};
 use config::Config;
 use database::{mock::MockDatabase, Database};
 
@@ -11,10 +11,10 @@ pub mod models;
 pub mod routes;
 pub mod services;
 
-// TODO: Setup RedisDB for token blacklisting.
 #[derive(Clone)]
 pub struct ApiState {
     db: Arc<dyn Database>,
+    redis: RedisCache,
     config: Config,
 }
 
@@ -41,7 +41,8 @@ async fn ctrl_c() {
 
 pub async fn run(config: Config) -> anyhow::Result<()> {
     let db = init_database(&config).await?;
-    let state = Arc::new(ApiState { db, config });
+    let redis = RedisCache::new(config.redis_uri()).await?;
+    let state = Arc::new(ApiState { db, redis, config });
 
     let listener = tokio::net::TcpListener::bind(state.config.socket_addr()).await?;
     tracing::info!("Listening on: {}", listener.local_addr()?);

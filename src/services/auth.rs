@@ -26,17 +26,19 @@ use crate::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum AuthError {
-    #[error("Invalid credentials")]
+    #[error("invalid credentials")]
     InvalidCredentials,
-    #[error("Unauthorized")]
+    #[error("unauthorized")]
     Unauthorized,
-    #[error("Forbidden")]
+    #[error("forbidden")]
     Forbidden,
-    #[error("Token is invalid")]
+    #[error("token is invalid")]
     TokenInvalid,
-    #[error("Token has expired")]
+    #[error("token has expired")]
     TokenExpired,
-    #[error("Username already taken")]
+    #[error("token has been revoked")]
+    TokenRevoked,
+    #[error("username already taken")]
     UsernameAlreadyTaken,
 }
 
@@ -48,6 +50,7 @@ impl AuthError {
             AuthError::Forbidden => StatusCode::FORBIDDEN,
             AuthError::TokenInvalid => StatusCode::UNAUTHORIZED,
             AuthError::TokenExpired => StatusCode::UNAUTHORIZED,
+            AuthError::TokenRevoked => StatusCode::UNAUTHORIZED,
             AuthError::UsernameAlreadyTaken => StatusCode::CONFLICT,
         }
     }
@@ -85,8 +88,8 @@ pub async fn login(
     // This is for session limiting that prevents the user from the 'login spam'.
     // If the user has 'user_session_limit' or more refresh tokens in the DB, remove
     // the oldest one before issuing a new token.
-    // NOTE: This will log out the device that uses the oldest token - 'user_session_limit' value
-    //       propably should be at least 5.
+    // This will log out the device that uses the oldest token - 'user_session_limit' value
+    // probably should be at least 5.
     let deleted_token = services::jwt::revoke_oldest_token(state, user.id).await?;
 
     let (access_token, refresh_token, token_model) = pairs_from_user(
@@ -101,11 +104,10 @@ pub async fn login(
     Ok((access_token, refresh_token, deleted_token))
 }
 
-// FIXME: Once some sort of token blacklisting is setup, blacklist the access token here.
 pub async fn refresh(
     state: &Arc<ApiState>,
     refresh_token: &str,
-    _access_jti: &Uuid,
+    access_jti: Uuid,
 ) -> Result<String, ApiError> {
     let claims = services::jwt::decode_token(refresh_token, &state.config.jwt_refresh_secret)?;
 
@@ -118,6 +120,12 @@ pub async fn refresh(
     {
         return Err(AuthError::TokenInvalid.into());
     }
+
+    state
+        .redis
+        .tokens()
+        .blacklist(access_jti, state.config.jwt_access_expiration)
+        .await?;
 
     let now = chrono::Utc::now();
     let access_claims = Claims::new(
@@ -139,23 +147,27 @@ pub async fn refresh(
     Ok(access_token)
 }
 
-// FIXME: Once some sort of token blacklisting is setup, blacklist the access token here.
 pub async fn logout(
     state: &Arc<ApiState>,
     refresh_token: &str,
-    _access_jti: &Uuid,
+    access_jti: Uuid,
 ) -> Result<Option<Uuid>, ApiError> {
     let claims = services::jwt::decode_token(refresh_token, &state.config.jwt_refresh_secret)?;
     let deleted_token = state.db.refresh_tokens().delete_by_jti(claims.jti).await?;
 
     if let Some(token) = deleted_token {
+        state
+            .redis
+            .tokens()
+            .blacklist(access_jti, state.config.jwt_access_expiration)
+            .await?;
+
         return Ok(Some(token.jti));
     }
 
     Ok(None)
 }
 
-// TODO: This should include some sort of token blacklist checks.
 pub async fn auth_guard(
     Extension(state): Extension<Arc<ApiState>>,
     mut req: Request,
@@ -169,6 +181,11 @@ pub async fn auth_guard(
         .ok_or(AuthError::Unauthorized)?;
 
     let claims = services::jwt::decode_token(access_token, &state.config.jwt_access_secret)?;
+
+    if state.redis.tokens().is_blacklisted(claims.jti).await? {
+        return Err(AuthError::TokenRevoked.into());
+    }
+
     req.extensions_mut().insert(claims);
 
     Ok(next.run(req).await)

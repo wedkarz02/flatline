@@ -83,7 +83,7 @@ async fn refresh(
     Extension(claims): Extension<Claims>,
     Json(payload): Json<RefreshPayload>,
 ) -> Result<ApiResponse, ApiError> {
-    let access_token = services::auth::refresh(&state, &payload.refresh_token, &claims.jti).await?;
+    let access_token = services::auth::refresh(&state, &payload.refresh_token, claims.jti).await?;
 
     ApiResponse::builder()
         .with_success(true)
@@ -104,7 +104,7 @@ async fn logout(
     Extension(claims): Extension<Claims>,
     Json(payload): Json<RefreshPayload>,
 ) -> Result<ApiResponse, ApiError> {
-    let res = services::auth::logout(&state, &payload.refresh_token, &claims.jti).await?;
+    let res = services::auth::logout(&state, &payload.refresh_token, claims.jti).await?;
     let mut builder = ApiResponse::builder().with_api_version(version);
 
     builder = if let Some(jti) = res {

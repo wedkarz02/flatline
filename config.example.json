@@ -10,6 +10,9 @@
     "database_name": "test_db",
     "database_pool": 5,
 
+    "redis_host": "127.0.0.1",
+    "redis_port": 6379,
+
     "jwt_access_secret": "jwt_access_secret",
     "jwt_refresh_secret": "jwt_refresh_secret",
 
