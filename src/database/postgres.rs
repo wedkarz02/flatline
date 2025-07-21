@@ -177,4 +177,14 @@ impl RefreshTokenRepository for PostgresDatabase {
 
         Ok(tokens)
     }
+
+    async fn find_by_jti(&self, jti: Uuid) -> Result<Option<RefreshToken>, ApiError> {
+        let token =
+            sqlx::query_as::<_, RefreshToken>("SELECT * FROM refresh_tokens WHERE jti = $1")
+                .bind(jti)
+                .fetch_optional(&self.pool)
+                .await?;
+
+        return Ok(token);
+    }
 }

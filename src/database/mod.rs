@@ -82,6 +82,7 @@ pub trait RefreshTokenRepository {
     async fn delete_expired(&self) -> Result<u64, ApiError>;
     async fn delete_by_jti(&self, jti: Uuid) -> Result<Option<RefreshToken>, ApiError>;
     async fn find_by_sub(&self, sub: Uuid) -> Result<Vec<RefreshToken>, ApiError>;
+    async fn find_by_jti(&self, jti: Uuid) -> Result<Option<RefreshToken>, ApiError>;
 }
 
 #[cfg(test)]

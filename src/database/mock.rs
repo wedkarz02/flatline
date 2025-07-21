@@ -127,4 +127,9 @@ impl RefreshTokenRepository for MockDatabase {
 
         Ok(tokens)
     }
+
+    async fn find_by_jti(&self, jti: Uuid) -> Result<Option<RefreshToken>, ApiError> {
+        let token = self.refresh_tokens.read().unwrap().get(&jti).cloned();
+        return Ok(token);
+    }
 }

@@ -17,7 +17,10 @@ use crate::{
     error::ApiError,
     models::refresh_token::RefreshToken,
     routes::auth::AuthPayload,
-    services::{self, jwt::pairs_from_user},
+    services::{
+        self,
+        jwt::{pairs_from_user, Claims},
+    },
     ApiState,
 };
 
@@ -96,6 +99,44 @@ pub async fn login(
 
     let _ = state.db.refresh_tokens().create(token_model).await?;
     Ok((access_token, refresh_token, deleted_token))
+}
+
+// FIXME: Once some sort of token blacklisting is setup, blacklist the access token here.
+pub async fn refresh(
+    state: &Arc<ApiState>,
+    refresh_token: &str,
+    _access_jti: &Uuid,
+) -> Result<String, ApiError> {
+    let claims = services::jwt::decode_token(refresh_token, &state.config.jwt_refresh_secret)?;
+
+    if state
+        .db
+        .refresh_tokens()
+        .find_by_jti(claims.jti)
+        .await?
+        .is_none()
+    {
+        return Err(AuthError::TokenInvalid.into());
+    }
+
+    let now = chrono::Utc::now();
+    let access_claims = Claims::new(
+        claims.sub,
+        now.checked_add_signed(chrono::Duration::seconds(
+            state.config.jwt_refresh_expiration,
+        ))
+        .unwrap()
+        .timestamp(),
+        now.timestamp(),
+        Uuid::new_v4(),
+        claims.username,
+        claims.roles,
+        claims.admin,
+    );
+    let access_token =
+        services::jwt::generate_token(&access_claims, &state.config.jwt_access_secret)?;
+
+    Ok(access_token)
 }
 
 // FIXME: Once some sort of token blacklisting is setup, blacklist the access token here.

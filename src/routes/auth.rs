@@ -77,6 +77,27 @@ async fn login(
         .as_ok()
 }
 
+async fn refresh(
+    State(state): State<Arc<ApiState>>,
+    version: ApiVersion,
+    Extension(claims): Extension<Claims>,
+    Json(payload): Json<RefreshPayload>,
+) -> Result<ApiResponse, ApiError> {
+    let access_token = services::auth::refresh(&state, &payload.refresh_token, &claims.jti).await?;
+
+    ApiResponse::builder()
+        .with_success(true)
+        .with_code(StatusCode::OK)
+        .with_api_version(version)
+        .with_message("Issued new access token")
+        .with_payload(json!({
+            "access_token": access_token,
+            "token_type": "Bearer",
+        }))
+        .build()
+        .as_ok()
+}
+
 async fn logout(
     State(state): State<Arc<ApiState>>,
     version: ApiVersion,
@@ -133,6 +154,7 @@ pub fn create_routes(state: Arc<ApiState>) -> Router {
         .route("/login", post(login));
 
     let protected_routes = Router::new()
+        .route("/refresh", post(refresh))
         .route("/logout", post(logout))
         .route("/protected", get(protected))
         .route("/admin", get(admin))
