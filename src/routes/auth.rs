@@ -70,7 +70,8 @@ async fn login(
         .with_message(&msg)
         .with_payload(json!({
             "access_token": access_token,
-            "refresh_token": refresh_token
+            "refresh_token": refresh_token,
+            "token_type": "Bearer",
         }))
         .build()
         .as_ok()
