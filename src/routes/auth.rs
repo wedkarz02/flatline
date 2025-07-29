@@ -69,9 +69,16 @@ async fn login(
         .with_api_version(version)
         .with_message(&msg)
         .with_payload(json!({
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "Bearer",
+            "jwt_access": {
+                "token": access_token,
+                "token_type": "Bearer",
+                "expires_in": state.config.jwt_access_expiration,
+            },
+            "jwt_refresh": {
+                "token": refresh_token,
+                "token_type": "Refresh",
+                "expires_in": state.config.jwt_refresh_expiration,
+            },
         }))
         .build()
         .as_ok()
@@ -80,10 +87,9 @@ async fn login(
 async fn refresh(
     State(state): State<Arc<ApiState>>,
     version: ApiVersion,
-    Extension(claims): Extension<Claims>,
     Json(payload): Json<RefreshPayload>,
 ) -> Result<ApiResponse, ApiError> {
-    let access_token = services::auth::refresh(&state, &payload.refresh_token, claims.jti).await?;
+    let access_token = services::auth::refresh(&state, &payload.refresh_token).await?;
 
     ApiResponse::builder()
         .with_success(true)
@@ -91,8 +97,11 @@ async fn refresh(
         .with_api_version(version)
         .with_message("Issued new access token")
         .with_payload(json!({
-            "access_token": access_token,
-            "token_type": "Bearer",
+            "jwt_access": {
+                "token": access_token,
+                "token_type": "Bearer",
+                "expires_in": state.config.jwt_access_expiration,
+            },
         }))
         .build()
         .as_ok()
@@ -151,10 +160,10 @@ async fn admin(
 pub fn create_routes(state: Arc<ApiState>) -> Router {
     let public_routes = Router::new()
         .route("/register", post(register))
-        .route("/login", post(login));
+        .route("/login", post(login))
+        .route("/refresh", post(refresh));
 
     let protected_routes = Router::new()
-        .route("/refresh", post(refresh))
         .route("/logout", post(logout))
         .route("/protected", get(protected))
         .route("/admin", get(admin))

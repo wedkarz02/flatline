@@ -104,11 +104,7 @@ pub async fn login(
     Ok((access_token, refresh_token, deleted_token))
 }
 
-pub async fn refresh(
-    state: &Arc<ApiState>,
-    refresh_token: &str,
-    access_jti: Uuid,
-) -> Result<String, ApiError> {
+pub async fn refresh(state: &Arc<ApiState>, refresh_token: &str) -> Result<String, ApiError> {
     let claims = services::jwt::decode_token(refresh_token, &state.config.jwt_refresh_secret)?;
 
     if state
@@ -120,12 +116,6 @@ pub async fn refresh(
     {
         return Err(AuthError::TokenInvalid.into());
     }
-
-    state
-        .redis
-        .tokens()
-        .blacklist(access_jti, state.config.jwt_access_expiration)
-        .await?;
 
     let now = chrono::Utc::now();
     let access_claims = Claims::new(
